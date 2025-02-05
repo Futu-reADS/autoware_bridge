@@ -1,17 +1,21 @@
 #include "autoware_bridge/autoware_bridge.hpp"
 
 #include <chrono>
-#include <exception>  // For exception handling
+#include <exception>
 #include <sstream>
 
 using namespace std::chrono_literals;
 
 AutowareBridgeNode::AutowareBridgeNode() : Node("autoware_bridge_node")
 {
-  // Subscription to UI_bridge topic
-  subscription_ = this->create_subscription<std_msgs::msg::String>(
-    "ui_to_autoware", 10,
-    std::bind(&AutowareBridgeNode::topic_callback, this, std::placeholders::_1));
+  // Subscriptions to UI_bridge topics
+  subscription_1_ = this->create_subscription<std_msgs::msg::String>(
+    "ui_to_autoware_topic1", 10,
+    std::bind(&AutowareBridgeNode::topic_callback_1, this, std::placeholders::_1));
+
+  subscription_2_ = this->create_subscription<std_msgs::msg::String>(
+    "ui_to_autoware_topic2", 10,
+    std::bind(&AutowareBridgeNode::topic_callback_2, this, std::placeholders::_1));
 
   // Service to check task status
   status_service_ = this->create_service<autoware_bridge::srv::GetTaskStatus>(
@@ -23,17 +27,17 @@ AutowareBridgeNode::AutowareBridgeNode() : Node("autoware_bridge_node")
   rclcpp::on_shutdown([this]() { graceful_shutdown(); });
 }
 
-std::string AutowareBridgeNode::generate_task_id()
+std::string AutowareBridgeNode::generate_task_id(const std::string & prefix)
 {
   std::stringstream ss;
-  ss << "task_" << std::chrono::system_clock::now().time_since_epoch().count();
+  ss << prefix << "_" << std::chrono::system_clock::now().time_since_epoch().count();
   return ss.str();
 }
 
-void AutowareBridgeNode::topic_callback(const std_msgs::msg::String::SharedPtr msg)
+void AutowareBridgeNode::topic_callback_1(const std_msgs::msg::String::SharedPtr msg)
 {
-  RCLCPP_INFO(this->get_logger(), "Received message: '%s'", msg->data.c_str());
-  std::string task_id = generate_task_id();
+  RCLCPP_INFO(this->get_logger(), "Received on Topic 1: '%s'", msg->data.c_str());
+  std::string task_id = generate_task_id("task_topic1");
 
   {
     std::lock_guard<std::mutex> lock(task_mutex_);
@@ -44,12 +48,10 @@ void AutowareBridgeNode::topic_callback(const std_msgs::msg::String::SharedPtr m
     update_task_status(task_id, "RUNNING");
 
     try {
-      // Simulated task processing
       std::this_thread::sleep_for(2s);
 
-      // Simulate possible error
-      if (rand() % 5 == 0) {  // 20% chance of failure
-        throw std::runtime_error("Simulated task error");
+      if (rand() % 5 == 0) {
+        throw std::runtime_error("Simulated task error for Topic 1");
       }
 
       update_task_status(task_id, "SUCCESS");
@@ -61,7 +63,41 @@ void AutowareBridgeNode::topic_callback(const std_msgs::msg::String::SharedPtr m
     }
   });
 
-  // Add thread to active threads list
+  {
+    std::lock_guard<std::mutex> lock(task_mutex_);
+    active_threads_.emplace_back(std::move(task_thread));
+  }
+}
+
+void AutowareBridgeNode::topic_callback_2(const std_msgs::msg::String::SharedPtr msg)
+{
+  RCLCPP_INFO(this->get_logger(), "Received on Topic 2: '%s'", msg->data.c_str());
+  std::string task_id = generate_task_id("task_topic2");
+
+  {
+    std::lock_guard<std::mutex> lock(task_mutex_);
+    task_status_[task_id] = "PENDING";
+  }
+
+  std::thread task_thread([this, task_id]() {
+    update_task_status(task_id, "RUNNING");
+
+    try {
+      std::this_thread::sleep_for(3s);
+
+      if (rand() % 4 == 0) {
+        throw std::runtime_error("Simulated task error for Topic 2");
+      }
+
+      update_task_status(task_id, "SUCCESS");
+      RCLCPP_INFO(this->get_logger(), "Task %s completed with status: SUCCESS", task_id.c_str());
+
+    } catch (const std::exception & e) {
+      update_task_status(task_id, "ERROR");
+      RCLCPP_ERROR(this->get_logger(), "Task %s failed with error: %s", task_id.c_str(), e.what());
+    }
+  });
+
   {
     std::lock_guard<std::mutex> lock(task_mutex_);
     active_threads_.emplace_back(std::move(task_thread));
