@@ -1,0 +1,52 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>autoware_bridge</name>
+  <version>0.0.0</version>
+  <description>Interface between UI and Autoware</description>
+  <maintainer email="avinash.singh@futu-re.co.jp">avinash</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Dependencies required during build -->
+  <build_depend>rclcpp</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>autoware_auto_msgs</build_depend>
+  <build_depend>autoware_auto_vehicle_msgs</build_depend>
+  <build_depend>autoware_auto_control_msgs</build_depend>
+  <build_depend>autoware_auto_planning_msgs</build_depend>
+  <build_depend>autoware_auto_perception_msgs</build_depend>
+  <build_depend>autoware_auto_mapping_msgs</build_depend>
+  <build_depend>autoware_auto_system_msgs</build_depend>
+  <build_depend>autoware_auto_msgs</build_depend>
+  <build_depend>autoware_auto_geometry_msgs</build_depend>
+  <build_depend>autoware_auto_common</build_depend>
+  <build_depend>rosidl_default_generators</build_depend>
+
+  <!-- Dependencies required at runtime -->
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>autoware_auto_msgs</exec_depend>
+  <exec_depend>autoware_auto_vehicle_msgs</exec_depend>
+  <exec_depend>autoware_auto_control_msgs</exec_depend>
+  <exec_depend>autoware_auto_planning_msgs</exec_depend>
+  <exec_depend>autoware_auto_perception_msgs</exec_depend>
+  <exec_depend>autoware_auto_mapping_msgs</exec_depend>
+  <exec_depend>autoware_auto_system_msgs</exec_depend>
+  <exec_depend>autoware_auto_msgs</exec_depend>
+  <exec_depend>autoware_auto_geometry_msgs</exec_depend>
+  <exec_depend>autoware_auto_common</exec_depend>
+  <exec_depend>rosidl_default_runtime</exec_depend>
+  
+  <!-- Test dependencies -->
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <!-- Member of rosidl interface packages group -->
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
