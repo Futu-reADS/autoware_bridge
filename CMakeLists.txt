@@ -16,7 +16,6 @@ find_package(autoware_auto_planning_msgs REQUIRED)
 find_package(autoware_auto_perception_msgs REQUIRED)
 find_package(autoware_auto_mapping_msgs REQUIRED)
 find_package(autoware_auto_system_msgs REQUIRED)
-find_package(autoware_auto_msgs REQUIRED)
 find_package(autoware_auto_geometry_msgs REQUIRED)
 find_package(autoware_auto_common REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
@@ -29,12 +28,16 @@ include_directories(
 # Service files
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetTaskStatus.srv"
+  "srv/CancelTask.srv"
   DEPENDENCIES std_msgs
 )
 
 # Add executable
 add_executable(autoware_bridge_node
   src/autoware_bridge.cpp
+  src/autoware_bridge_util.cpp
+  src/localization_task.cpp
+  src/set_goal_task.cpp
 )
 
 # Link dependencies
@@ -50,6 +53,7 @@ ament_target_dependencies(autoware_bridge_node
   autoware_auto_system_msgs
   autoware_auto_geometry_msgs
   autoware_auto_common
+  rosidl_default_runtime
 )
 
 # Link generated service interfaces
@@ -64,6 +68,11 @@ install(TARGETS autoware_bridge_node
 # Install header files
 install(DIRECTORY include/
   DESTINATION include/
+)
+
+# Install service files
+install(DIRECTORY srv/
+  DESTINATION share/${PROJECT_NAME}/srv
 )
 
 if(BUILD_TESTING)
