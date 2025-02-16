@@ -2,11 +2,13 @@
 
 AutowareBridgeNode::AutowareBridgeNode()
 : Node("autoware_bridge_node"),
-  autoware_bridge_util_(),  // Initialize instance
+  autoware_bridge_util_(),
   localization_task_(this->shared_from_this(), autoware_bridge_util_),
-  set_goal_task_(this->shared_from_this(), autoware_bridge_util_)
+  set_goal_task_(this->shared_from_this(), autoware_bridge_util_),
+  driving_task_(this->shared_from_this(), autoware_bridge_util_),  // Added DrivingTask
+  is_task_running_(false)                                          // Initialize task flag
 {
-  // subscriptions handling
+  // Subscriptions handling
   subscription_1_ = this->create_subscription<std_msgs::msg::String>(
     "ui_to_autoware_topic1", 10,
     std::bind(&AutowareBridgeNode::topic_callback_1, this, std::placeholders::_1));
@@ -15,7 +17,15 @@ AutowareBridgeNode::AutowareBridgeNode()
     "ui_to_autoware_topic2", 10,
     std::bind(&AutowareBridgeNode::topic_callback_2, this, std::placeholders::_1));
 
-  // services handling
+  subscription_3_ = this->create_subscription<std_msgs::msg::String>(  // Added third subscription
+    "ui_to_autoware_topic3", 10,
+    std::bind(&AutowareBridgeNode::topic_callback_3, this, std::placeholders::_1));
+
+  // Publishers handling for task rejection status
+  task_rejection_status_publisher_ =
+    this->create_publisher<std_msgs::msg::String>("task_status", 10);
+
+  // Services handling
   status_service_ = this->create_service<autoware_bridge::srv::GetTaskStatus>(
     "check_task_status", std::bind(
                            &AutowareBridgeNode::handle_status_request, this, std::placeholders::_1,
@@ -25,42 +35,59 @@ AutowareBridgeNode::AutowareBridgeNode()
     "cancel_task", std::bind(
                      &AutowareBridgeNode::handle_cancel_request, this, std::placeholders::_1,
                      std::placeholders::_2));
-
-  executor_thread_ = std::thread(&AutowareBridgeNode::task_executor, this);
 }
 
 AutowareBridgeNode::~AutowareBridgeNode()
 {
-  {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
-    stop_executor_ = true;
-  }
-  queue_cv_.notify_one();
-  executor_thread_.join();
 }
 
 void AutowareBridgeNode::topic_callback_1(const std_msgs::msg::String::SharedPtr /*msg*/)
 {
-  std::string task_id = autoware_bridge_util_.generate_task_id("localization");
-  autoware_bridge_util_.update_task_status(task_id, "PENDING");
-
-  {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
-    task_queue_.emplace(task_id, [this, task_id]() { localization_task_.execute(task_id); });
+  if (is_task_running_.exchange(true)) {
+    // Notify UI about failure
+    publish_task_rejection_status("localization");
+    return;
   }
-  queue_cv_.notify_one();
+
+  std::string task_id = autoware_bridge_util_.generate_task_id("localization");
+  autoware_bridge_util_.update_task_status(task_id, "RUNNING");
+
+  std::thread([this, task_id]() {
+    localization_task_.execute(task_id);
+    is_task_running_ = false;  // Mark task as completed
+  }).detach();
 }
 
 void AutowareBridgeNode::topic_callback_2(const std_msgs::msg::String::SharedPtr /*msg*/)
 {
-  std::string task_id = autoware_bridge_util_.generate_task_id("set_goal");
-  autoware_bridge_util_.update_task_status(task_id, "PENDING");
-
-  {
-    std::lock_guard<std::mutex> lock(queue_mutex_);
-    task_queue_.emplace(task_id, [this, task_id]() { set_goal_task_.execute(task_id); });
+  if (is_task_running_.exchange(true)) {
+    publish_task_rejection_status("set_goal");
+    return;
   }
-  queue_cv_.notify_one();
+
+  std::string task_id = autoware_bridge_util_.generate_task_id("set_goal");
+  autoware_bridge_util_.update_task_status(task_id, "RUNNING");
+
+  std::thread([this, task_id]() {
+    set_goal_task_.execute(task_id);
+    is_task_running_ = false;
+  }).detach();
+}
+
+void AutowareBridgeNode::topic_callback_3(const std_msgs::msg::String::SharedPtr /*msg*/)
+{
+  if (is_task_running_.exchange(true)) {
+    publish_task_rejection_status("driving");
+    return;
+  }
+
+  std::string task_id = autoware_bridge_util_.generate_task_id("driving");
+  autoware_bridge_util_.update_task_status(task_id, "RUNNING");
+
+  std::thread([this, task_id]() {
+    driving_task_.execute(task_id);
+    is_task_running_ = false;
+  }).detach();
 }
 
 void AutowareBridgeNode::handle_status_request(
@@ -69,40 +96,35 @@ void AutowareBridgeNode::handle_status_request(
 {
   autoware_bridge_util_.handle_status_request(request, response);
 }
-/*
+
 void AutowareBridgeNode::handle_cancel_request(
   const std::shared_ptr<autoware_bridge::srv::CancelTask::Request> request,
   std::shared_ptr<autoware_bridge::srv::CancelTask::Response> response)
 {
-  // autoware_bridge_util_.handle_cancel_request(request, response);
-} */
+  std::string current_status = autoware_bridge_util_.get_task_status(request->task_id);
 
-void AutowareBridgeNode::handle_cancel_request(
-  const std::shared_ptr<autoware_bridge::srv::CancelTask::Request> /* request */,
-  std::shared_ptr<autoware_bridge::srv::CancelTask::Response> /* response */)
-{
-  // Your actual cancellation logic here
+  if (current_status == "RUNNING") {
+    bool success = autoware_bridge_util_.cancel_task(request->task_id);
+    response->success = success;
+    response->message = success ? "Task cancelled successfully" : "Failed to cancel task.";
+  } else {
+    response->success = false;
+    response->message = "Task not currently running or already completed.";
+  }
 }
 
-void AutowareBridgeNode::task_executor()
+void AutowareBridgeNode::publish_task_rejection_status(const std::string & task_name)
 {
-  while (true) {
-    std::pair<std::string, std::function<void()>> task;
-    {
-      std::unique_lock<std::mutex> lock(queue_mutex_);
-      queue_cv_.wait(lock, [this]() { return !task_queue_.empty() || stop_executor_; });
+  std::string active_task = autoware_bridge_util_.get_active_task();  // Get currently running task
 
-      if (stop_executor_ && task_queue_.empty()) {
-        return;
-      }
+  RCLCPP_WARN(
+    this->get_logger(), "Task is already running (%s). Ignoring %s request.", active_task.c_str(),
+    task_name.c_str());
 
-      task = std::move(task_queue_.front());
-      task_queue_.pop();
-    }
-
-    // Execute Task
-    task.second();
-  }
+  auto failure_msg = std_msgs::msg::String();
+  failure_msg.data = "Task rejected: " + task_name + " request is ignored because " + active_task +
+                     " is already running.";
+  task_rejection_status_publisher_->publish(failure_msg);
 }
 
 // **Main Function**

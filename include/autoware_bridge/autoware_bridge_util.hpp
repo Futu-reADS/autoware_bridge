@@ -18,7 +18,10 @@ public:
   AutowareBridgeUtil() = default;
   std::string generate_task_id(const std::string & task_name);
   void update_task_status(const std::string & task_id, const std::string & status);
-  void cancel_task(const std::string & task_id);
+  std::string get_task_status(const std::string & task_id);
+  std::string get_active_task();
+  bool cancel_task(const std::string & task_id);
+
   void handle_status_request(
     const std::shared_ptr<autoware_bridge::srv::GetTaskStatus_Request> request,
     std::shared_ptr<autoware_bridge::srv::GetTaskStatus_Response> response);

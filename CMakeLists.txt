@@ -38,6 +38,7 @@ add_executable(autoware_bridge_node
   src/autoware_bridge_util.cpp
   src/localization_task.cpp
   src/set_goal_task.cpp
+  src/driving_task.cpp
 )
 
 # Link dependencies
