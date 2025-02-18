@@ -4,8 +4,13 @@
 #include <stdexcept>
 #include <thread>
 
-DrivingTask::DrivingTask(rclcpp::Node::SharedPtr node, AutowareBridgeUtil & autoware_bridge_util)
-: node_(node), autoware_bridge_util_(autoware_bridge_util)
+DrivingTask::DrivingTask(
+  rclcpp::Node::SharedPtr node, AutowareBridgeUtil & autoware_bridge_util,
+  std::atomic<bool> & is_task_running)
+: node_(node),
+  autoware_bridge_util_(autoware_bridge_util),
+  cancel_requested_(false),
+  is_task_running_(is_task_running)
 {
 }
 

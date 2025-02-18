@@ -35,7 +35,7 @@ private:
   rclcpp::Service<autoware_bridge::srv::GetTaskStatus>::SharedPtr status_service_;
   rclcpp::Service<autoware_bridge::srv::CancelTask>::SharedPtr cancel_service_;
 
-  // Utility class (Now instance-based)
+  // Utility class instance
   AutowareBridgeUtil autoware_bridge_util_;
 
   // Task management
@@ -58,7 +58,7 @@ private:
     const std::shared_ptr<autoware_bridge::srv::CancelTask::Request> request,
     std::shared_ptr<autoware_bridge::srv::CancelTask::Response> response);
 
-  std::atomic<bool> is_task_running_{false};
+  std::atomic<bool> is_task_running_;
 };
 
 #endif  // AUTOWARE_BRIDGE_HPP

@@ -3,10 +3,10 @@
 AutowareBridgeNode::AutowareBridgeNode()
 : Node("autoware_bridge_node"),
   autoware_bridge_util_(),
-  localization_task_(this->shared_from_this(), autoware_bridge_util_),
-  set_goal_task_(this->shared_from_this(), autoware_bridge_util_),
-  driving_task_(this->shared_from_this(), autoware_bridge_util_),  // Added DrivingTask
-  is_task_running_(false)                                          // Initialize task flag
+  localization_task_(this->shared_from_this(), autoware_bridge_util_, is_task_running_),
+  set_goal_task_(this->shared_from_this(), autoware_bridge_util_, is_task_running_),
+  driving_task_(this->shared_from_this(), autoware_bridge_util_, is_task_running_),
+  is_task_running_(false)  // Initialize task flag
 {
   // Subscriptions handling
   subscription_1_ = this->create_subscription<std_msgs::msg::String>(
@@ -48,7 +48,7 @@ void AutowareBridgeNode::topic_callback_1(const std_msgs::msg::String::SharedPtr
     publish_task_rejection_status("localization");
     return;
   }
-
+  // this task_id will be provided by UI_bridge as parameter
   std::string task_id = autoware_bridge_util_.generate_task_id("localization");
   autoware_bridge_util_.update_task_status(task_id, "RUNNING");
 
@@ -66,7 +66,7 @@ void AutowareBridgeNode::topic_callback_2(const std_msgs::msg::String::SharedPtr
   }
 
   std::string task_id = autoware_bridge_util_.generate_task_id("set_goal");
-  autoware_bridge_util_.update_task_status(task_id, "RUNNING");
+  autoware_bridge_util_.update_task_status(task_id, "PENDING");
 
   std::thread([this, task_id]() {
     set_goal_task_.execute(task_id);
@@ -101,16 +101,31 @@ void AutowareBridgeNode::handle_cancel_request(
   const std::shared_ptr<autoware_bridge::srv::CancelTask::Request> request,
   std::shared_ptr<autoware_bridge::srv::CancelTask::Response> response)
 {
-  std::string current_status = autoware_bridge_util_.get_task_status(request->task_id);
+  std::string active_task = autoware_bridge_util_.get_active_task();  // Get the running task ID
 
-  if (current_status == "RUNNING") {
-    bool success = autoware_bridge_util_.cancel_task(request->task_id);
-    response->success = success;
-    response->message = success ? "Task cancelled successfully" : "Failed to cancel task.";
-  } else {
+  if (active_task == "NO_ACTIVE_TASK") {
     response->success = false;
-    response->message = "Task not currently running or already completed.";
+    response->message = "No active task to cancel.";
+    return;
   }
+
+  if (request->task_id != active_task) {
+    response->success = false;
+    response->message = "Requested task ID does not match the currently running task.";
+    return;
+  }
+
+  // Request cancellation for the correct task
+  if (active_task.find("localization") != std::string::npos) {
+    localization_task_.request_cancel();
+  } else if (active_task.find("set_goal") != std::string::npos) {
+    set_goal_task_.request_cancel();
+  } else if (active_task.find("driving") != std::string::npos) {
+    driving_task_.request_cancel();
+  }
+
+  response->success = true;
+  response->message = "Task cancellation requested. The task will stop shortly.";
 }
 
 void AutowareBridgeNode::publish_task_rejection_status(const std::string & task_name)
@@ -131,7 +146,8 @@ void AutowareBridgeNode::publish_task_rejection_status(const std::string & task_
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<AutowareBridgeNode>());
+  auto node = std::make_shared<AutowareBridgeNode>();
+  rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;
 }

@@ -4,8 +4,13 @@
 #include <stdexcept>
 #include <thread>
 
-SetGoalTask::SetGoalTask(rclcpp::Node::SharedPtr node, AutowareBridgeUtil & autoware_bridge_util)
-: node_(node), autoware_bridge_util_(autoware_bridge_util)
+SetGoalTask::SetGoalTask(
+  rclcpp::Node::SharedPtr node, AutowareBridgeUtil & autoware_bridge_util,
+  std::atomic<bool> & is_task_running)
+: node_(node),
+  autoware_bridge_util_(autoware_bridge_util),
+  cancel_requested_(false),
+  is_task_running_(is_task_running)
 {
 }
 
@@ -26,7 +31,7 @@ void SetGoalTask::execute(const std::string & task_id)
   }
 }
 
-void SetGoalTask::cancel()
+void SetGoalTask::request_cancel()
 {
   // is_canceled_ = true; // we can use any flag like this in above function to not execute or
   // we can write something here to send stop request.

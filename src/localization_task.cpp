@@ -5,28 +5,50 @@
 #include <thread>
 
 LocalizationTask::LocalizationTask(
-  rclcpp::Node::SharedPtr node, AutowareBridgeUtil & autoware_bridge_util)
-: node_(node), autoware_bridge_util_(autoware_bridge_util)
+  rclcpp::Node::SharedPtr node, AutowareBridgeUtil & autoware_bridge_util,
+  std::atomic<bool> & is_task_running)
+: node_(node),
+  autoware_bridge_util_(autoware_bridge_util),
+  cancel_requested_(false),
+  is_task_running_(is_task_running)
 {
 }
 
 void LocalizationTask::execute(const std::string & task_id)
 {
   autoware_bridge_util_.update_task_status(task_id, "RUNNING");
-  // write your localization logic here and set the status and response.
+
+  /* while (processing) {  // Example processing loop
+    if (cancel_requested_) {  // Check if cancellation was requested
+      RCLCPP_INFO(rclcpp::get_logger("LocalizationTask"), "Localization task cancelled.");
+      return;  // Exit early
+    }
+
+    // Localization logic here...
+  } */
   try {
-    std::this_thread::sleep_for(std::chrono::seconds(2));
+    for (int i = 0; i < 20; ++i) {  // Simulating localization steps
+      if (cancel_requested_) {      // Check if cancellation was requested
+        is_task_running_ = false;
+        autoware_bridge_util_.update_task_status(task_id, "CANCELLED");
+        RCLCPP_INFO(node_->get_logger(), "Localization task cancelled.");
+        return;  // Exit early
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));  // Simulate processing
+    }
+
     if (rand() % 5 == 0) throw std::runtime_error("Simulated localization error");
 
     autoware_bridge_util_.update_task_status(task_id, "SUCCESS");
+    is_task_running_ = false;  // Mark task as completed
   } catch (const std::exception & e) {
     autoware_bridge_util_.update_task_status(task_id, "ERROR");
     RCLCPP_ERROR(node_->get_logger(), "Localization task failed: %s", e.what());
+    is_task_running_ = false;  // Ensure the task is marked as not running after error
   }
 }
 
-void LocalizationTask::cancel()
+void LocalizationTask::request_cancel()
 {
-  // is_canceled_ = true; // we can use any flag like this in above function to not execute or
-  // we can write something here to send stop request.
+  cancel_requested_ = true;
 }
