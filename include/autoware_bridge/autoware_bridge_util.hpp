@@ -9,13 +9,14 @@
 #include <mutex>
 #include <string>
 // Include the service headers for GetTaskStatus and CancelTask
-#include "autoware_bridge/srv/cancel_task.hpp"
+// #include "autoware_bridge/srv/cancel_task.hpp"
 #include "autoware_bridge/srv/get_task_status.hpp"
 
 class AutowareBridgeUtil
 {
 public:
-  AutowareBridgeUtil() : active_task_id_(""), active_task_(nullptr) {}
+  AutowareBridgeUtil() : active_task_(nullptr) {}
+
   std::string generate_task_id(const std::string & task_name);
   void update_task_status(const std::string & task_id, const std::string & status);
   std::string get_task_status(const std::string & task_id);
@@ -31,14 +32,13 @@ public:
   void handle_status_request(
     const std::shared_ptr<autoware_bridge::srv::GetTaskStatus_Request> request,
     std::shared_ptr<autoware_bridge::srv::GetTaskStatus_Response> response);
-  void handle_cancel_request(
+  /* void handle_cancel_request(
     const std::shared_ptr<autoware_bridge::srv::CancelTask_Request> request,
     std::shared_ptr<autoware_bridge::srv::CancelTask_Response> response);
-
+ */
 private:
   std::mutex task_mutex_;
   std::map<std::string, std::string> task_status_;
-  std::string active_task_id_;  // Empty if no active task.
   std::shared_ptr<BaseTask> active_task_;
 };
 

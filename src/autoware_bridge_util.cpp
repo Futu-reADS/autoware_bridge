@@ -36,21 +36,35 @@ void AutowareBridgeUtil::set_active_task(
   const std::string & task_id, std::shared_ptr<BaseTask> task_ptr)
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
-  active_task_id_ = task_id;
+  // task_status_.clear();  // Clears all previous tasks
+  task_status_[task_id] = "RUNNING";  // Mark as active
   active_task_ = task_ptr;
 }
 
 void AutowareBridgeUtil::clear_active_task()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
-  active_task_id_.clear();
-  active_task_ = nullptr;
+
+  // Find the currently running task and mark it as completed
+  for (auto & task : task_status_) {
+    if (task.second == "RUNNING") {
+      task.second = "COMPLETED";  // Mark as done instead of deleting it
+      break;
+    }
+  }
+
+  active_task_ = nullptr;  // Reset active task pointer
 }
 
 std::string AutowareBridgeUtil::get_active_task_id()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
-  return active_task_id_.empty() ? "NO_ACTIVE_TASK" : active_task_id_;
+  for (const auto & task : task_status_) {
+    if (task.second == "RUNNING") {
+      return task.first;  // Return the active task's ID
+    }
+  }
+  return "NO_ACTIVE_TASK";
 }
 
 std::shared_ptr<BaseTask> AutowareBridgeUtil::get_active_task_ptr()
@@ -72,7 +86,7 @@ std::shared_ptr<BaseTask> AutowareBridgeUtil::get_active_task_ptr()
   return "NO_ACTIVE_TASK";  // No running task found
 } */
 
-bool AutowareBridgeUtil::cancel_task(const std::string & task_id)
+/* bool AutowareBridgeUtil::cancel_task(const std::string & task_id)
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
   auto it = task_status_.find(task_id);
@@ -81,8 +95,9 @@ bool AutowareBridgeUtil::cancel_task(const std::string & task_id)
     return true;  // Successfully canceled
   }
   return false;  // Task not found
-}
+} */
 
+// When status is requested in terms of service.
 void AutowareBridgeUtil::handle_status_request(
   const std::shared_ptr<autoware_bridge::srv::GetTaskStatus_Request> request,
   std::shared_ptr<autoware_bridge::srv::GetTaskStatus_Response> response)
@@ -92,9 +107,9 @@ void AutowareBridgeUtil::handle_status_request(
   response->status = (it != task_status_.end()) ? it->second : "NOT_FOUND";
 }
 
-void AutowareBridgeUtil::handle_cancel_request(
+/* void AutowareBridgeUtil::handle_cancel_request(
   const std::shared_ptr<autoware_bridge::srv::CancelTask_Request> request,
   std::shared_ptr<autoware_bridge::srv::CancelTask_Response> response)
 {
   response->success = cancel_task(request->task_id);
-}
+} */

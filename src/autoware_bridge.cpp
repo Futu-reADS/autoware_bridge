@@ -26,9 +26,13 @@ AutowareBridgeNode::AutowareBridgeNode(
     "ui_to_autoware_topic3", 10,
     std::bind(&AutowareBridgeNode::topic_callback_3, this, std::placeholders::_1));
 
-  // Publisher for task rejection status
-  task_rejection_status_publisher_ =
-    this->create_publisher<std_msgs::msg::String>("task_status", 10);
+  cancel_task_subscription_ = this->create_subscription<std_msgs::msg::String>(
+    "cancel_task_topic", 10,
+    std::bind(&AutowareBridgeNode::cancel_task_callback, this, std::placeholders::_1));
+
+  // Publisher for task rejection reason
+  task_rejection_reason_publisher_ =
+    this->create_publisher<std_msgs::msg::String>("task_rejection_reason", 10);
 
   // Services handling
   status_service_ = this->create_service<autoware_bridge::srv::GetTaskStatus>(
@@ -51,7 +55,7 @@ AutowareBridgeNode::~AutowareBridgeNode()
 void AutowareBridgeNode::topic_callback_1(const std_msgs::msg::String::SharedPtr /*msg*/)
 {
   if (is_task_running_.exchange(true)) {
-    publish_task_rejection_status("localization");
+    publish_task_rejection_reason("localization");
     return;
   }
 
@@ -70,7 +74,7 @@ void AutowareBridgeNode::topic_callback_1(const std_msgs::msg::String::SharedPtr
 void AutowareBridgeNode::topic_callback_2(const std_msgs::msg::String::SharedPtr /*msg*/)
 {
   if (is_task_running_.exchange(true)) {
-    publish_task_rejection_status("set_goal");
+    publish_task_rejection_reason("set_goal");
     return;
   }
 
@@ -88,7 +92,7 @@ void AutowareBridgeNode::topic_callback_2(const std_msgs::msg::String::SharedPtr
 void AutowareBridgeNode::topic_callback_3(const std_msgs::msg::String::SharedPtr /*msg*/)
 {
   if (is_task_running_.exchange(true)) {
-    publish_task_rejection_status("driving");
+    publish_task_rejection_reason("driving");
     return;
   }
 
@@ -130,7 +134,7 @@ void AutowareBridgeNode::handle_cancel_request(
     return;
   }
 
-    if (active_task) {
+  if (active_task) {
     active_task->request_cancel();
     response->success = true;
     response->message = "Task cancellation requested.";
@@ -140,8 +144,37 @@ void AutowareBridgeNode::handle_cancel_request(
   }
 }
 
+void AutowareBridgeNode::cancel_task_callback(const std_msgs::msg::String::SharedPtr msg)
+{
+  std::string requested_task_id = msg->data;
+  std::string active_task_id = autoware_bridge_util_->get_active_task_id();
+  std::shared_ptr<BaseTask> active_task = autoware_bridge_util_->get_active_task_ptr();
+
+  if (active_task_id == "NO_ACTIVE_TASK") {
+    RCLCPP_WARN(this->get_logger(), "UI requested cancellation, but no task is currently running.");
+    return;
+  }
+
+  if (requested_task_id != active_task_id) {
+    RCLCPP_WARN(
+      this->get_logger(),
+      "UI requested cancellation for task [%s], but currently running task is [%s]. Ignoring "
+      "request.",
+      requested_task_id.c_str(), active_task_id.c_str());
+    return;
+  }
+
+  if (active_task) {
+    active_task->request_cancel();
+    RCLCPP_INFO(
+      this->get_logger(), "Task [%s] cancellation requested via UI.", active_task_id.c_str());
+  } else {
+    RCLCPP_ERROR(this->get_logger(), "Active task pointer is null. Cannot cancel.");
+  }
+}
+
 // Utility to publish task rejection messages
-void AutowareBridgeNode::publish_task_rejection_status(const std::string & task_name)
+void AutowareBridgeNode::publish_task_rejection_reason(const std::string & task_name)
 {
   std::string active_task_id = autoware_bridge_util_->get_active_task_id();
 
@@ -152,7 +185,7 @@ void AutowareBridgeNode::publish_task_rejection_status(const std::string & task_
   auto failure_msg = std_msgs::msg::String();
   failure_msg.data =
     "Task rejected: " + task_name + " request ignored because " + active_task_id + " is running.";
-  task_rejection_status_publisher_->publish(failure_msg);
+  task_rejection_reason_publisher_->publish(failure_msg);
 }
 
 // **Main Function**

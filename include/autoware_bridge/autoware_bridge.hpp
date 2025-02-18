@@ -31,9 +31,10 @@ private:
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_1_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_2_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_3_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr cancel_task_subscription_;
 
   // ROS2 Publisher for task rejection status
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_rejection_status_publisher_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_rejection_reason_publisher_;
 
   // ROS2 Services
   rclcpp::Service<autoware_bridge::srv::GetTaskStatus>::SharedPtr status_service_;
@@ -49,7 +50,9 @@ private:
   void topic_callback_1(const std_msgs::msg::String::SharedPtr msg);
   void topic_callback_2(const std_msgs::msg::String::SharedPtr msg);
   void topic_callback_3(const std_msgs::msg::String::SharedPtr msg);
-  void publish_task_rejection_status(const std::string & task_name);
+  void cancel_task_callback(const std_msgs::msg::String::SharedPtr msg);
+
+  void publish_task_rejection_reason(const std::string & task_name);
 
   // Service Handlers
   void handle_status_request(

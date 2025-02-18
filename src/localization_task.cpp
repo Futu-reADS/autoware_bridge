@@ -32,7 +32,7 @@ void LocalizationTask::execute(const std::string & task_id)
       if (cancel_requested_) {
         is_task_running_ = false;
         autoware_bridge_util_->update_task_status(task_id, "CANCELLED");
-        RCLCPP_INFO(node_->get_logger(), "Localization task cancelled.");
+        RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
         return;
       }
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -44,7 +44,7 @@ void LocalizationTask::execute(const std::string & task_id)
     is_task_running_ = false;
   } catch (const std::exception & e) {
     autoware_bridge_util_->update_task_status(task_id, "ERROR");
-    RCLCPP_ERROR(node_->get_logger(), "Localization task failed: %s", e.what());
+    RCLCPP_ERROR(node_->get_logger(), "Localization task %s failed: %s", task_id.c_str(), e.what());
     is_task_running_ = false;
   }
 }
