@@ -5,7 +5,7 @@
 #include <thread>
 
 DrivingTask::DrivingTask(
-  rclcpp::Node::SharedPtr node, AutowareBridgeUtil & autoware_bridge_util,
+  rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
   std::atomic<bool> & is_task_running)
 : node_(node),
   autoware_bridge_util_(autoware_bridge_util),
@@ -16,15 +16,15 @@ DrivingTask::DrivingTask(
 
 void DrivingTask::execute(const std::string & task_id)
 {
-  autoware_bridge_util_.update_task_status(task_id, "RUNNING");
+  autoware_bridge_util_->update_task_status(task_id, "RUNNING");
   // write your localization logic here and set the status and response.
   try {
     std::this_thread::sleep_for(std::chrono::seconds(2));
     if (rand() % 5 == 0) throw std::runtime_error("Simulated localization error");
 
-    autoware_bridge_util_.update_task_status(task_id, "SUCCESS");
+    autoware_bridge_util_->update_task_status(task_id, "SUCCESS");
   } catch (const std::exception & e) {
-    autoware_bridge_util_.update_task_status(task_id, "ERROR");
+    autoware_bridge_util_->update_task_status(task_id, "ERROR");
     RCLCPP_ERROR(node_->get_logger(), "Localization task failed: %s", e.what());
   }
 }

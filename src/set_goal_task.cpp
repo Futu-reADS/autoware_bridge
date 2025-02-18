@@ -5,7 +5,7 @@
 #include <thread>
 
 SetGoalTask::SetGoalTask(
-  rclcpp::Node::SharedPtr node, AutowareBridgeUtil & autoware_bridge_util,
+  rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
   std::atomic<bool> & is_task_running)
 : node_(node),
   autoware_bridge_util_(autoware_bridge_util),
@@ -16,7 +16,16 @@ SetGoalTask::SetGoalTask(
 
 void SetGoalTask::execute(const std::string & task_id)
 {
-  autoware_bridge_util_.update_task_status(task_id, "RUNNING");
+  autoware_bridge_util_->update_task_status(task_id, "RUNNING");
+
+  /* while (processing) {  // Example processing loop
+    if (cancel_requested_) {  // Check if cancellation was requested
+      RCLCPP_INFO(rclcpp::get_logger("SetGoalTask"), "SetGoal task cancelled.");
+      return;  // Exit early
+    }
+
+    // Localization logic here...
+  } */
 
   try {
     std::this_thread::sleep_for(std::chrono::seconds(3));  // Simulated processing
@@ -24,9 +33,9 @@ void SetGoalTask::execute(const std::string & task_id)
       throw std::runtime_error("Simulated set goal error");
     }
 
-    autoware_bridge_util_.update_task_status(task_id, "SUCCESS");
+    autoware_bridge_util_->update_task_status(task_id, "SUCCESS");
   } catch (const std::exception & e) {
-    autoware_bridge_util_.update_task_status(task_id, "ERROR");
+    autoware_bridge_util_->update_task_status(task_id, "ERROR");
     RCLCPP_ERROR(node_->get_logger(), "Set goal task failed: %s", e.what());
   }
 }

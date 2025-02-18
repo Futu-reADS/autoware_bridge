@@ -13,13 +13,17 @@
 #include <std_msgs/msg/string.hpp>
 
 #include <atomic>
+#include <memory>
 #include <mutex>
 #include <thread>
 
 class AutowareBridgeNode : public rclcpp::Node
 {
 public:
-  AutowareBridgeNode();
+  AutowareBridgeNode(
+    std::shared_ptr<AutowareBridgeUtil> util, std::shared_ptr<LocalizationTask> localization_task,
+    std::shared_ptr<SetGoalTask> set_goal_task, std::shared_ptr<DrivingTask> driving_task);
+
   ~AutowareBridgeNode();
 
 private:
@@ -28,20 +32,18 @@ private:
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_2_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_3_;
 
-  // ROS2 task status Publisher
+  // ROS2 Publisher for task rejection status
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_rejection_status_publisher_;
 
   // ROS2 Services
   rclcpp::Service<autoware_bridge::srv::GetTaskStatus>::SharedPtr status_service_;
   rclcpp::Service<autoware_bridge::srv::CancelTask>::SharedPtr cancel_service_;
 
-  // Utility class instance
-  AutowareBridgeUtil autoware_bridge_util_;
-
-  // Task management
-  LocalizationTask localization_task_;
-  SetGoalTask set_goal_task_;
-  DrivingTask driving_task_;
+  // // Shared Utility instance and tasks
+  std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;
+  std::shared_ptr<LocalizationTask> localization_task_;
+  std::shared_ptr<SetGoalTask> set_goal_task_;
+  std::shared_ptr<DrivingTask> driving_task_;
 
   // Private Methods
   void topic_callback_1(const std_msgs::msg::String::SharedPtr msg);
@@ -58,6 +60,7 @@ private:
     const std::shared_ptr<autoware_bridge::srv::CancelTask::Request> request,
     std::shared_ptr<autoware_bridge::srv::CancelTask::Response> response);
 
+  // Single active task tracking flag
   std::atomic<bool> is_task_running_;
 };
 

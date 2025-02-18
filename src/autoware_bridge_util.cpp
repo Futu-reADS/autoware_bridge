@@ -31,7 +31,35 @@ std::string AutowareBridgeUtil::get_task_status(const std::string & task_id)
   return "NOT_FOUND";  // Task ID does not exist
 }
 
-std::string AutowareBridgeUtil::get_active_task()
+// Active task tracking functions.
+void AutowareBridgeUtil::set_active_task(
+  const std::string & task_id, std::shared_ptr<BaseTask> task_ptr)
+{
+  std::lock_guard<std::mutex> lock(task_mutex_);
+  active_task_id_ = task_id;
+  active_task_ = task_ptr;
+}
+
+void AutowareBridgeUtil::clear_active_task()
+{
+  std::lock_guard<std::mutex> lock(task_mutex_);
+  active_task_id_.clear();
+  active_task_ = nullptr;
+}
+
+std::string AutowareBridgeUtil::get_active_task_id()
+{
+  std::lock_guard<std::mutex> lock(task_mutex_);
+  return active_task_id_.empty() ? "NO_ACTIVE_TASK" : active_task_id_;
+}
+
+std::shared_ptr<BaseTask> AutowareBridgeUtil::get_active_task_ptr()
+{
+  std::lock_guard<std::mutex> lock(task_mutex_);
+  return active_task_;
+}
+
+/* std::string AutowareBridgeUtil::get_active_task()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);  // Ensure thread safety
 
@@ -42,7 +70,7 @@ std::string AutowareBridgeUtil::get_active_task()
   }
 
   return "NO_ACTIVE_TASK";  // No running task found
-}
+} */
 
 bool AutowareBridgeUtil::cancel_task(const std::string & task_id)
 {
