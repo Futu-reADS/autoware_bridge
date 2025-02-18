@@ -31,7 +31,7 @@ void LocalizationTask::execute(const std::string & task_id)
     for (int i = 0; i < 20; ++i) {  // Simulating localization steps
       if (cancel_requested_) {
         is_task_running_ = false;
-        autoware_bridge_util_->update_task_status(task_id, "CANCELLED");
+        autoware_bridge_util_->update_task_status(task_id, "CANCELLED", "Cancelled by user");
         RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
         return;
       }
@@ -43,7 +43,7 @@ void LocalizationTask::execute(const std::string & task_id)
     autoware_bridge_util_->update_task_status(task_id, "SUCCESS");
     is_task_running_ = false;
   } catch (const std::exception & e) {
-    autoware_bridge_util_->update_task_status(task_id, "ERROR");
+    autoware_bridge_util_->update_task_status(task_id, "FAILED", e.what());
     RCLCPP_ERROR(node_->get_logger(), "Localization task %s failed: %s", task_id.c_str(), e.what());
     is_task_running_ = false;
   }

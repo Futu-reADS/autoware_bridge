@@ -18,7 +18,8 @@ public:
   AutowareBridgeUtil() : active_task_(nullptr) {}
 
   std::string generate_task_id(const std::string & task_name);
-  void update_task_status(const std::string & task_id, const std::string & status);
+  void update_task_status(
+    const std::string & task_id, const std::string & status, const std::string & reason = "");
   std::string get_task_status(const std::string & task_id);
 
   // Active task tracking functions.

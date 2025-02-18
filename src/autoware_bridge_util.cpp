@@ -13,10 +13,15 @@ std::string AutowareBridgeUtil::generate_task_id(const std::string & task_name)
   return task_name + "_" + std::to_string(now.nanoseconds());
 }
 
-void AutowareBridgeUtil::update_task_status(const std::string & task_id, const std::string & status)
+void AutowareBridgeUtil::update_task_status(
+  const std::string & task_id, const std::string & status, const std::string & reason)
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
-  task_status_[task_id] = status;
+  if (!reason.empty()) {
+    task_status_[task_id] = status + " (" + reason + ")";
+  } else {
+    task_status_[task_id] = status;
+  }
 }
 
 std::string AutowareBridgeUtil::get_task_status(const std::string & task_id)
@@ -28,7 +33,7 @@ std::string AutowareBridgeUtil::get_task_status(const std::string & task_id)
     return it->second;  // Return the task status if found
   }
 
-  return "NOT_FOUND";  // Task ID does not exist
+  return "NOT_RUNNING";  // It indicates task is among the known but not running currently
 }
 
 // Active task tracking functions.
@@ -48,7 +53,7 @@ void AutowareBridgeUtil::clear_active_task()
   // Find the currently running task and mark it as completed
   for (auto & task : task_status_) {
     if (task.second == "RUNNING") {
-      task.second = "COMPLETED";  // Mark as done instead of deleting it
+      task.second = "SUCCESS";  // Mark as done instead of deleting it
       break;
     }
   }
@@ -104,7 +109,7 @@ void AutowareBridgeUtil::handle_status_request(
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
   auto it = task_status_.find(request->task_id);
-  response->status = (it != task_status_.end()) ? it->second : "NOT_FOUND";
+  response->status = (it != task_status_.end()) ? it->second : "NOT_RUNNING";
 }
 
 /* void AutowareBridgeUtil::handle_cancel_request(

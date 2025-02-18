@@ -124,23 +124,24 @@ void AutowareBridgeNode::handle_cancel_request(
 
   if (active_task_id == "NO_ACTIVE_TASK") {
     response->success = false;
-    response->message = "No active task to cancel.";
+    response->message = "FAILED: No active task to cancel. Task ID: " + request->task_id;
     return;
   }
 
   if (request->task_id != active_task_id) {
     response->success = false;
-    response->message = "Requested task ID does not match the currently running task.";
+    response->message =
+      "FAILED: Requested task ID does not match active task (" + active_task_id + ").";
     return;
   }
 
   if (active_task) {
     active_task->request_cancel();
     response->success = true;
-    response->message = "Task cancellation requested.";
+    response->message = "SUCCESS: Canceled task " + active_task_id;
   } else {
     response->success = false;
-    response->message = "Active task pointer is null.";
+    response->message = "FAILED: Active task pointer is null. Task ID: " + active_task_id;
   }
 }
 
@@ -167,9 +168,10 @@ void AutowareBridgeNode::cancel_task_callback(const std_msgs::msg::String::Share
   if (active_task) {
     active_task->request_cancel();
     RCLCPP_INFO(
-      this->get_logger(), "Task [%s] cancellation requested via UI.", active_task_id.c_str());
+      this->get_logger(), "UI cancel request: Task [%s] cancellation requested.",
+      active_task_id.c_str());
   } else {
-    RCLCPP_ERROR(this->get_logger(), "Active task pointer is null. Cannot cancel.");
+    RCLCPP_ERROR(this->get_logger(), "UI cancel request: Active task pointer is null.");
   }
 }
 
