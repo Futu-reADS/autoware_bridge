@@ -12,45 +12,51 @@
 // #include "autoware_bridge/srv/cancel_task.hpp"
 #include "autoware_bridge/srv/get_task_status.hpp"
 
+#define EMPTY_STRING ""
+
+enum class TaskRequestType { STATUS, REASON, RETRIES, TOTAL_RETRIES, CANCEL_STATUS, CANCEL_REASON };
+
 struct TaskCancellationInfo
 {
-  std::string status;
-  std::string reason;
+  std::string status = EMPTY_STRING;
+  std::string reason = EMPTY_STRING;
 };
 
 struct TaskInfo
 {
-  std::string task_id;
-  std::string
-    status;  // rejected -> pending -> running -> retrying -> success | failed -> cancelled
-  std::string reason;  // Failure reason or rejection explanation
+  std::string status =
+    EMPTY_STRING;  // rejected -> pending -> running -> retrying -> success | failed -> cancelled
+  std::string reason = EMPTY_STRING;  // Failure reason or rejection explanation
   int32_t retry_number = 0;
   int32_t total_retries = 0;
-  bool service_response_status = true;  // true for other than rejected
   TaskCancellationInfo cancel_info;
 };
+
 class AutowareBridgeUtil
 {
 public:
   AutowareBridgeUtil() : active_task_(nullptr) {}
 
-  void update_task_status(
-    const std::string & task_id, const std::string & status, const std::string & reason = "");
-  TaskInfo get_task_status(const std::string & task_id);
+  void updateTaskStatus(
+    const std::string & task_id, TaskRequestType request_type, const std::string & value,
+    int number = 0);
 
-  // Active task tracking functions.
-  void set_active_task(const std::string & task_id, std::shared_ptr<BaseTask> task_ptr);
-  void clear_active_task();
-  std::string get_active_task_id();
-  std::shared_ptr<BaseTask> get_active_task_ptr();
+  bool isTaskActive(const std::string & task_id);
+  std::string getActiveTaskId();
+  bool isActiveTaskIdEmpty();
+  TaskInfo getTaskStatus(const std::string & task_id);
 
-  void handle_status_request(
+  void setActiveTask(std::shared_ptr<BaseTask> task_ptr);
+  void clearActiveTask();
+  std::shared_ptr<BaseTask> getActiveTaskPointer();
+
+  void handleStatusRequest(
     const std::shared_ptr<autoware_bridge::srv::GetTaskStatus_Request> request,
     std::shared_ptr<autoware_bridge::srv::GetTaskStatus_Response> response);
 
 private:
   std::mutex task_mutex_;
-  std::map<std::string, TaskInfo> task_status_;
+  std::map<std::string, TaskInfo> task_map_;
   std::shared_ptr<BaseTask> active_task_;
 };
 

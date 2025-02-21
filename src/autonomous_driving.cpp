@@ -1,10 +1,10 @@
-#include "autoware_bridge/driving_task.hpp"
+#include "autoware_bridge/autonomous_driving.hpp"
 
 #include <chrono>
 #include <stdexcept>
 #include <thread>
 
-DrivingTask::DrivingTask(
+AutonomousDriving::AutonomousDriving(
   rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
   std::atomic<bool> & is_task_running)
 : node_(node),
@@ -14,23 +14,23 @@ DrivingTask::DrivingTask(
 {
 }
 
-void DrivingTask::execute(
+void AutonomousDriving::execute(
   const std::string & task_id, const geometry_msgs::msg::PoseStamped & /*pose*/)
 {
-  autoware_bridge_util_->update_task_status(task_id, "RUNNING");
+  autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "RUNNING");
   // write your localization logic here and set the status and response.
   try {
     std::this_thread::sleep_for(std::chrono::seconds(2));
     if (rand() % 5 == 0) throw std::runtime_error("Simulated localization error");
 
-    autoware_bridge_util_->update_task_status(task_id, "SUCCESS");
+    autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
   } catch (const std::exception & e) {
-    autoware_bridge_util_->update_task_status(task_id, "ERROR");
+    autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "ERROR");
     RCLCPP_ERROR(node_->get_logger(), "Localization task failed: %s", e.what());
   }
 }
 
-void DrivingTask::request_cancel()
+void AutonomousDriving::request_cancel()
 {
   // is_canceled_ = true; // we can use any flag like this in above function to not execute or
   // we can write something here to send stop request.

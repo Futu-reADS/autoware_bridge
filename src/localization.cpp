@@ -1,10 +1,10 @@
-#include "autoware_bridge/localization_task.hpp"
+#include "autoware_bridge/localization.hpp"
 
 #include <chrono>
 #include <stdexcept>
 #include <thread>
 
-LocalizationTask::LocalizationTask(
+Localization::Localization(
   rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
   std::atomic<bool> & is_task_running)
 : node_(node),
@@ -14,14 +14,14 @@ LocalizationTask::LocalizationTask(
 {
 }
 
-void LocalizationTask::execute(
+void Localization::execute(
   const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
 {
-  autoware_bridge_util_->update_task_status(task_id, "RUNNING");
+  autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "RUNNING");
 
   /* while (processing) {  // Example processing loop
     if (cancel_requested_) {  // Check if cancellation was requested
-      RCLCPP_INFO(rclcpp::get_logger("LocalizationTask"), "Localization task cancelled.");
+      RCLCPP_INFO(rclcpp::get_logger("Localization"), "Localization task cancelled.");
       return;  // Exit early
     }
 
@@ -32,7 +32,9 @@ void LocalizationTask::execute(
     for (int i = 0; i < 20; ++i) {  // Simulating localization steps
       if (cancel_requested_) {
         is_task_running_ = false;
-        autoware_bridge_util_->update_task_status(task_id, "CANCELLED", "Cancelled by user");
+        autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "CANCELLED");
+        autoware_bridge_util_->updateTaskStatus(
+          task_id, TaskRequestType::REASON, "Cancelled by user");
         RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
         return;
       }
@@ -41,16 +43,17 @@ void LocalizationTask::execute(
 
     if (rand() % 5 == 0) throw std::runtime_error("Simulated localization error");
 
-    autoware_bridge_util_->update_task_status(task_id, "SUCCESS");
+    autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
     is_task_running_ = false;
   } catch (const std::exception & e) {
-    autoware_bridge_util_->update_task_status(task_id, "FAILED", e.what());
+    autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "FAILED");
+    autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::REASON, e.what());
     RCLCPP_ERROR(node_->get_logger(), "Localization task %s failed: %s", task_id.c_str(), e.what());
     is_task_running_ = false;
   }
 }
 
-void LocalizationTask::request_cancel()
+void Localization::request_cancel()
 {
   cancel_requested_ = true;
 }

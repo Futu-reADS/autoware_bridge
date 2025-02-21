@@ -30,7 +30,6 @@ include_directories(
 # Service files
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetTaskStatus.srv"
-  "srv/CancelTask.srv"
   DEPENDENCIES std_msgs
 )
 
@@ -38,9 +37,9 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 add_executable(autoware_bridge_node
   src/autoware_bridge.cpp
   src/autoware_bridge_util.cpp
-  src/localization_task.cpp
-  src/set_goal_task.cpp
-  src/driving_task.cpp
+  src/localization.cpp
+  src/route_planning.cpp
+  src/autonomous_driving.cpp
 )
 
 # Link dependencies
