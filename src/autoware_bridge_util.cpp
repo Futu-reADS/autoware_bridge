@@ -6,97 +6,140 @@
 #include <memory>  // For shared_ptr
 #include <mutex>
 
-void AutowareBridgeUtil::update_task_status(
-  const std::string & task_id, const std::string & status, const std::string & reason)
+
+void AutowareBridgeUtil::updateTaskStatus(
+  const std::string & task_id, const std::string & request_type, const std::string & value, int number)
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
+
+  if (task_status_.empty()){
+    task_status_[task_id] = TaskInfo();
+  }
+
   auto it = task_status_.find(task_id);
-  if (it == task_status_.end()) {
-    // Create a new TaskInfo for this task id.
-    TaskInfo info;
-    info.task_id = task_id;
-    info.status = status;
-    info.reason = reason;
-    // The retry numbers and service_response_status are initialized to default values.
-    info.retry_number = 0;
-    info.total_retries = 0;
-    info.service_response_status = (status != "REJECTED");  // false only for rejected tasks
-    // cancel_info remains default-initialized.
-    if (status == "CANCELLED") {
-      info.cancel_info.status = "SUCCESS";  // Assuming cancellation is successful
-      info.cancel_info.reason = reason;
+  
+  if ( it != task_status_.end() ){
+    TaskInfo & task_info = it->second;
+    switch(request_type){
+      case "STATUS":
+      task_info.status = value;
+        break;
+      case "REASON":
+        it->second.reason = value;
+        break;
+      case "RETRIES":
+        task_info.retry_number = number;
+        break;
+      case "TOTAL_RETRIES":
+        task_info.total_retries = number;
+        break;
+      case "CANCEL_STATUS":
+        task_info.cancel_info.status = value;
+        break;
+      case "CANCEL_REASON":
+        task_info.cancel_info.reason = value;
+        break;
+      default:
+        RCLCPP_WARN( this->get_logger(), "Request type is not valid: %s", request_type.c_str());
+        break;
     }
-    task_status_[task_id] = info;
-  } else {
-    // Update the existing TaskInfo entry.
-    it->second.status = status;
-    it->second.reason = reason;
-    it->second.service_response_status = (status != "REJECTED");
-    // If task is cancelled, update cancel_info
-    if (status == "CANCELLED") {
-      it->second.cancel_info.status = "SUCCESS";  // Assuming cancellation is successful
-      it->second.cancel_info.reason = reason;
-    }
+  }
+  else{
+    RCLCPP_WARN( this->get_logger(), "Requested task_id: %s is not the active one to update.", 
+    requested_task_id.c_str()); 
   }
 }
 
-TaskInfo AutowareBridgeUtil::get_task_status(const std::string & task_id)
+bool AutowareBridgeUtil::isTaskActive(const std::string & task_id)
 {
-  std::lock_guard<std::mutex> lock(task_mutex_);  // Ensure thread safety
+  std::lock_guard<std::mutex> lock(task_mutex_);
   auto it = task_status_.find(task_id);
-
   if (it != task_status_.end()) {
-    return it->second;  // Return the task status if found
+    return true;
   }
-
-  // Return a default TaskInfo with a "NOT_RUNNING" status
-  TaskInfo task_info;
-  task_info.task_id = task_id;                             // Assign the task_id
-  task_info.status = "NOT_RUNNING";                        // Indicate it's not running
-  task_info.reason = "Task not found in the known tasks";  // Optional
-  // Ensure cancel_info is set to default values
-  task_info.cancel_info.status = "UNKNOWN";
-  task_info.cancel_info.reason = "No cancellation record available";
-
-  return task_info;
+  return false;
 }
 
-// Active task tracking functions.
-void AutowareBridgeUtil::set_active_task(
-  const std::string & task_id, std::shared_ptr<BaseTask> task_ptr)
+std::string AutowareBridgeUtil::getActiveTaskId()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
-  // task_status_.clear();  // Clears all previous tasks
-  // Mark the parameter as unused if needed:
-  (void)task_id;
-  active_task_ = task_ptr;
-}
-
-void AutowareBridgeUtil::clear_active_task()
-{
-  std::lock_guard<std::mutex> lock(task_mutex_);
-  active_task_ = nullptr;  // Reset active task pointer
-}
-
-std::string AutowareBridgeUtil::get_active_task_id()
-{
-  std::lock_guard<std::mutex> lock(task_mutex_);
-  for (const auto & task : task_status_) {
-    if (task.second.status == "RUNNING") {
-      return task.first;  // Return the active task's ID
-    }
+  for (auto &[task_id, task_info] : task_status_) {
+    return task_id;
   }
   return "NO_ACTIVE_TASK";
 }
 
-std::shared_ptr<BaseTask> AutowareBridgeUtil::get_active_task_ptr()
+bool AutowareBridgeUtil::isActiveTaskIdEmpty()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
+  return task_status_.empty();
+}
+
+TaskInfo AutowareBridgeUtil::getTaskStatus(const std::string & task_id)
+{
+  TaskInfo data;
+  std::lock_guard<std::mutex> lock(task_mutex_);  // Ensure thread safety
+  auto it = task_status_.find(task_id);
+
+  if (it != task_status_.end()) {
+    data = it->second;
+  }
+  else{
+    RCLCPP_WARN( this->get_logger(), "Requested task_id: %s is not the active one.", task_id.c_str()); 
+  }
+  return data
+}
+
+
+
+void AutowareBridgeUtil::setActiveTask(std::shared_ptr<BaseTask> task_ptr)
+{
+  // std::lock_guard<std::mutex> lock(task_mutex_);
+  active_task_ = task_ptr;
+}
+
+void AutowareBridgeUtil::clearActiveTask()
+{
+  // std::lock_guard<std::mutex> lock(task_mutex_);
+  active_task_ = nullptr;  // Reset active task pointer
+}
+
+std::shared_ptr<BaseTask> AutowareBridgeUtil::getActiveTaskPointer()
+{
+  // std::lock_guard<std::mutex> lock(task_mutex_);
   return active_task_;
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 // use when status is requested in terms of service.
-void AutowareBridgeUtil::handle_status_request(
+void AutowareBridgeUtil::handleStatusRequest(
   const std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Request> request,
   std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Response> response)
 {

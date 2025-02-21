@@ -62,17 +62,17 @@ private:
   std::shared_ptr<DrivingTask> driving_task_;
 
   // Private Methods
-  void localization_request_callback(
+  void localizationRequestCallback(
     const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);
-  void route_planning_request_callback(
+  void routePlanningRequestCallback(
     const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);
-  void autonomous_driving_request_callback(const std_msgs::msg::String::SharedPtr msg);
-  void cancel_task_callback(const std_msgs::msg::String::SharedPtr msg);
+  void autonomousDrivingRequestCallback(const std_msgs::msg::String::SharedPtr msg);
+  void cancelTaskCallback(const std_msgs::msg::String::SharedPtr msg);
 
-  void publish_task_rejection_reason(const std::string & task_name);
+  void publishTaskRejectionReason(const std::string & task_name);
 
   // Service Handlers
-  void handle_status_request(
+  void handleStatusRequest(
     const std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Request> request,
     std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Response> response);
 
