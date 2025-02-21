@@ -14,15 +14,7 @@
 
 #define EMPTY_STRING ""
 
-class enum TaskRequestType
-{
-  STATUS,
-  REASON,
-  RETRIES,
-  TOTAL_RETRIES,
-  CANCEL_STATUS,
-  CANCEL_REASON
-};
+enum class TaskRequestType { STATUS, REASON, RETRIES, TOTAL_RETRIES, CANCEL_STATUS, CANCEL_REASON };
 
 struct TaskCancellationInfo
 {
@@ -32,7 +24,8 @@ struct TaskCancellationInfo
 
 struct TaskInfo
 {
-  std::string status = EMPTY_STRING;  // rejected -> pending -> running -> retrying -> success | failed -> cancelled
+  std::string status =
+    EMPTY_STRING;  // rejected -> pending -> running -> retrying -> success | failed -> cancelled
   std::string reason = EMPTY_STRING;  // Failure reason or rejection explanation
   int32_t retry_number = 0;
   int32_t total_retries = 0;
@@ -45,19 +38,18 @@ public:
   AutowareBridgeUtil() : active_task_(nullptr) {}
 
   void updateTaskStatus(
-    const std::string & task_id, const std::string & request_type, 
-    const std::string & value, int number = 0);
+    const std::string & task_id, TaskRequestType request_type, const std::string & value,
+    int number = 0);
 
   bool isTaskActive(const std::string & task_id);
   std::string getActiveTaskId();
   bool isActiveTaskIdEmpty();
   TaskInfo getTaskStatus(const std::string & task_id);
 
-
   void setActiveTask(std::shared_ptr<BaseTask> task_ptr);
   void clearActiveTask();
   std::shared_ptr<BaseTask> getActiveTaskPointer();
-  
+
   void handleStatusRequest(
     const std::shared_ptr<autoware_bridge::srv::GetTaskStatus_Request> request,
     std::shared_ptr<autoware_bridge::srv::GetTaskStatus_Response> response);

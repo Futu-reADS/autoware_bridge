@@ -6,23 +6,22 @@
 #include <memory>  // For shared_ptr
 #include <mutex>
 
-
 void AutowareBridgeUtil::updateTaskStatus(
   const std::string & task_id, TaskRequestType request_type, const std::string & value, int number)
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
 
-  if (task_map_.empty()){
+  if (task_map_.empty()) {
     task_map_[task_id] = TaskInfo();
   }
 
   auto it = task_map_.find(task_id);
-  
-  if ( it != task_map_.end() ){
+
+  if (it != task_map_.end()) {
     TaskInfo & task_info = it->second;
-    switch(request_type){
+    switch (request_type) {
       case TaskRequestType::STATUS:
-      task_info.status = value;
+        task_info.status = value;
         break;
       case TaskRequestType::REASON:
         it->second.reason = value;
@@ -40,13 +39,13 @@ void AutowareBridgeUtil::updateTaskStatus(
         task_info.cancel_info.reason = value;
         break;
       default:
-        RCLCPP_WARN( this->get_logger(), "Request type is not valid: %s", request_type.c_str());
+        RCLCPP_WARN(rclcpp::get_logger("autoware_bridge_util"), "Request type is not valid.");
         break;
     }
-  }
-  else{
-    RCLCPP_WARN( this->get_logger(), "Requested task_id: %s is not the active one to update.", 
-    requested_task_id.c_str()); 
+  } else {
+    RCLCPP_WARN(
+      rclcpp::get_logger("autoware_bridge_util"),
+      "Requested task_id: %s is not the active one to update.", task_id.c_str());
   }
 }
 
@@ -63,7 +62,7 @@ bool AutowareBridgeUtil::isTaskActive(const std::string & task_id)
 std::string AutowareBridgeUtil::getActiveTaskId()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
-  for (auto &[task_id, task_info] : task_map_) {
+  for (auto & [task_id, task_info] : task_map_) {
     return task_id;
   }
   return "NO_ACTIVE_TASK";
@@ -83,14 +82,13 @@ TaskInfo AutowareBridgeUtil::getTaskStatus(const std::string & task_id)
 
   if (it != task_map_.end()) {
     data = it->second;
+  } else {
+    RCLCPP_WARN(
+      rclcpp::get_logger("autoware_bridge_util"), "Requested task_id: %s is not the active one.",
+      task_id.c_str());
   }
-  else{
-    RCLCPP_WARN( this->get_logger(), "Requested task_id: %s is not the active one.", task_id.c_str()); 
-  }
-  return data
+  return data;
 }
-
-
 
 void AutowareBridgeUtil::setActiveTask(std::shared_ptr<BaseTask> task_ptr)
 {
@@ -117,13 +115,13 @@ void AutowareBridgeUtil::handleStatusRequest(
 {
   if (isTaskActive(request->task_id)) {
     std::lock_guard<std::mutex> lock(task_mutex_);
-    TaskInfo task_info = getTaskStatus(request->task_id);     // PENDING, RUNNING, RETRYING, SUCCESS, FAILED, CANCELLED
+    TaskInfo task_info =
+      getTaskStatus(request->task_id);  // PENDING, RUNNING, RETRYING, SUCCESS, FAILED, CANCELLED
     response->status = task_info.status;
     response->retry_number = task_info.retry_number;
     response->total_retries = task_info.total_retries;
     response->reason = task_info.reason;
-  } 
-  else {
+  } else {
     response->status = "REJECTED";
     response->reason = "Requested task_id is not the last active one";
     response->retry_number = 0;

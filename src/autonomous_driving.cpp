@@ -17,15 +17,15 @@ AutonomousDriving::AutonomousDriving(
 void AutonomousDriving::execute(
   const std::string & task_id, const geometry_msgs::msg::PoseStamped & /*pose*/)
 {
-  autoware_bridge_util_->update_task_status(task_id, "RUNNING");
+  autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "RUNNING");
   // write your localization logic here and set the status and response.
   try {
     std::this_thread::sleep_for(std::chrono::seconds(2));
     if (rand() % 5 == 0) throw std::runtime_error("Simulated localization error");
 
-    autoware_bridge_util_->update_task_status(task_id, "SUCCESS");
+    autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
   } catch (const std::exception & e) {
-    autoware_bridge_util_->update_task_status(task_id, "ERROR");
+    autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "ERROR");
     RCLCPP_ERROR(node_->get_logger(), "Localization task failed: %s", e.what());
   }
 }

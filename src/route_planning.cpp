@@ -14,18 +14,19 @@ RoutePlanning::RoutePlanning(
 {
 }
 
-void RoutePlanning::execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
+void RoutePlanning::execute(
+  const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
 {
-  autoware_bridge_util_->update_task_status(task_id, "RUNNING");
+  /* autoware_bridge_util_->update_task_status(task_id, "RUNNING");
 
-  /* while (processing) {  // Example processing loop
+   while (processing) {  // Example processing loop
     if (cancel_requested_) {  // Check if cancellation was requested
       RCLCPP_INFO(rclcpp::get_logger("RoutePlanning"), "SetGoal task cancelled.");
       return;  // Exit early
     }
 
     // Localization logic here...
-  } */
+  }
 
   try {
     std::this_thread::sleep_for(std::chrono::seconds(3));  // Simulated processing
@@ -37,7 +38,7 @@ void RoutePlanning::execute(const std::string & task_id, const geometry_msgs::ms
   } catch (const std::exception & e) {
     autoware_bridge_util_->update_task_status(task_id, "ERROR");
     RCLCPP_ERROR(node_->get_logger(), "Set goal task failed: %s", e.what());
-  }
+  } */
 }
 
 void RoutePlanning::request_cancel()
