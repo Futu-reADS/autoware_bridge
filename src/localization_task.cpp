@@ -14,7 +14,8 @@ LocalizationTask::LocalizationTask(
 {
 }
 
-void LocalizationTask::execute(const std::string & task_id)
+void LocalizationTask::execute(
+  const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
 {
   autoware_bridge_util_->update_task_status(task_id, "RUNNING");
 

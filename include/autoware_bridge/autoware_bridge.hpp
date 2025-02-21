@@ -6,7 +6,6 @@
 #include "autoware_bridge/localization_task.hpp"
 #include "autoware_bridge/set_goal_task.hpp"
 
-#include <autoware_bridge/srv/cancel_task.hpp>
 #include <autoware_bridge/srv/get_task_status.hpp>
 #include <rclcpp/rclcpp.hpp>
 
@@ -16,6 +15,10 @@
 #include <memory>
 #include <mutex>
 #include <thread>
+
+// Include the custom message header
+#include "autoware_bridge_msgs/msg/task_status_response.hpp"
+#include "ftd_master_msgs/msg/pose_stamped_with_task_id.hpp"
 
 class AutowareBridgeNode : public rclcpp::Node
 {
@@ -28,17 +31,29 @@ public:
 
 private:
   // ROS2 Subscriptions
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_1_;
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_2_;
-  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr subscription_3_;
+
+  rclcpp::Subscription<ftd_master_msgs::msg::PoseStampedWithTaskId>::SharedPtr
+    localization_request_subscription_;
+  rclcpp::Subscription<ftd_master_msgs::msg::PoseStampedWithTaskId>::SharedPtr
+    route_planning_request_subscription_;
+  rclcpp::Subscription<std_msgs::msg::String>::SharedPtr autonomous_driving_request_subscription_;
+
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr cancel_task_subscription_;
 
+  // Publisher for task response (execution result)
+  rclcpp::Publisher<autoware_bridge_msgs::msg::TaskStatusResponse>::SharedPtr
+    task_response_publisher_;
+
+  // Publisher for cancellation response
+  rclcpp::Publisher<autoware_bridge_msgs::msg::TaskStatusResponse>::SharedPtr
+    cancel_response_publisher_;
+
   // ROS2 Publisher for task rejection status
-  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr task_rejection_reason_publisher_;
+  rclcpp::Publisher<autoware_bridge_msgs::msg::TaskStatusResponse>::SharedPtr
+    task_rejection_reason_publisher_;
 
   // ROS2 Services
   rclcpp::Service<autoware_bridge::srv::GetTaskStatus>::SharedPtr status_service_;
-  rclcpp::Service<autoware_bridge::srv::CancelTask>::SharedPtr cancel_service_;
 
   // // Shared Utility instance and tasks
   std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;
@@ -47,9 +62,11 @@ private:
   std::shared_ptr<DrivingTask> driving_task_;
 
   // Private Methods
-  void topic_callback_1(const std_msgs::msg::String::SharedPtr msg);
-  void topic_callback_2(const std_msgs::msg::String::SharedPtr msg);
-  void topic_callback_3(const std_msgs::msg::String::SharedPtr msg);
+  void localization_request_callback(
+    const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);
+  void route_planning_request_callback(
+    const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);
+  void autonomous_driving_request_callback(const std_msgs::msg::String::SharedPtr msg);
   void cancel_task_callback(const std_msgs::msg::String::SharedPtr msg);
 
   void publish_task_rejection_reason(const std::string & task_name);
@@ -59,12 +76,14 @@ private:
     const std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Request> request,
     std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Response> response);
 
-  void handle_cancel_request(
-    const std::shared_ptr<autoware_bridge::srv::CancelTask::Request> request,
-    std::shared_ptr<autoware_bridge::srv::CancelTask::Response> response);
-
   // Single active task tracking flag
   std::atomic<bool> is_task_running_;
+
+  // Helper functions
+  void publishTaskResponse(const std::string & task_id);
+  void publishCancelResponse(const std::string & task_id);
+  autoware_bridge_msgs::msg::TaskStatusResponse createTaskStatusResponse(
+    const std::string & task_id);
 };
 
 #endif  // AUTOWARE_BRIDGE_HPP

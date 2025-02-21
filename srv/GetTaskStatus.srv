@@ -1,4 +1,7 @@
 string task_id
 ---
 bool success
-string status
+string message
+int32 retry_number
+int32 total_retries
+string rejection_reason

@@ -12,6 +12,8 @@
   <!-- Dependencies required during build -->
   <build_depend>rclcpp</build_depend>
   <build_depend>std_msgs</build_depend>
+  <build_depend>ftd_master_msgs</build_depend>
+  <build_depend>autoware_bridge_msgs</build_depend>
   <build_depend>autoware_auto_msgs</build_depend>
   <build_depend>autoware_auto_vehicle_msgs</build_depend>
   <build_depend>autoware_auto_control_msgs</build_depend>
@@ -19,7 +21,6 @@
   <build_depend>autoware_auto_perception_msgs</build_depend>
   <build_depend>autoware_auto_mapping_msgs</build_depend>
   <build_depend>autoware_auto_system_msgs</build_depend>
-  <build_depend>autoware_auto_msgs</build_depend>
   <build_depend>autoware_auto_geometry_msgs</build_depend>
   <build_depend>autoware_auto_common</build_depend>
   <build_depend>rosidl_default_generators</build_depend>
@@ -27,6 +28,8 @@
   <!-- Dependencies required at runtime -->
   <exec_depend>rclcpp</exec_depend>
   <exec_depend>std_msgs</exec_depend>
+  <exec_depend>ftd_master_msgs</exec_depend>
+  <exec_depend>autoware_bridge_msgs</exec_depend>
   <exec_depend>autoware_auto_msgs</exec_depend>
   <exec_depend>autoware_auto_vehicle_msgs</exec_depend>
   <exec_depend>autoware_auto_control_msgs</exec_depend>
@@ -34,7 +37,6 @@
   <exec_depend>autoware_auto_perception_msgs</exec_depend>
   <exec_depend>autoware_auto_mapping_msgs</exec_depend>
   <exec_depend>autoware_auto_system_msgs</exec_depend>
-  <exec_depend>autoware_auto_msgs</exec_depend>
   <exec_depend>autoware_auto_geometry_msgs</exec_depend>
   <exec_depend>autoware_auto_common</exec_depend>
   <exec_depend>rosidl_default_runtime</exec_depend>

@@ -6,14 +6,18 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include <atomic>
+#include <memory>
+
 class DrivingTask : public BaseTask
 {
 public:
   DrivingTask(
     rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
     std::atomic<bool> & is_task_running);
-  void execute(const std::string & task_id);  // This is just execution, NOT task management
-  void request_cancel();                      // New method to cancel the task
+  void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
+    override;                      // Executes Driving
+  void request_cancel() override;  // Requests task cancellation
 
 private:
   rclcpp::Node::SharedPtr node_;

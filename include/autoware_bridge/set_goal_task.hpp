@@ -6,14 +6,18 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include <atomic>
+#include <memory>
 class SetGoalTask : public BaseTask
 {
 public:
   SetGoalTask(
     rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
     std::atomic<bool> & is_task_running);
-  void execute(const std::string & task_id);  // Just executes task, NO thread management
-  void request_cancel();
+
+  void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
+    override;                      // Executes SetGoal
+  void request_cancel() override;  // Requests task cancellation
 
 private:
   rclcpp::Node::SharedPtr node_;

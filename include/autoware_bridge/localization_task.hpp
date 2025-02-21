@@ -16,8 +16,9 @@ public:
     rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
     std::atomic<bool> & is_task_running);
 
-  virtual void execute(const std::string & task_id) override;  // Executes localization
-  virtual void request_cancel();                               // Requests task cancellation
+  void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
+    override;                      // Executes localization
+  void request_cancel() override;  // Requests task cancellation
 
 private:
   rclcpp::Node::SharedPtr node_;

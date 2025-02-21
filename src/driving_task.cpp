@@ -14,7 +14,8 @@ DrivingTask::DrivingTask(
 {
 }
 
-void DrivingTask::execute(const std::string & task_id)
+void DrivingTask::execute(
+  const std::string & task_id, const geometry_msgs::msg::PoseStamped & /*pose*/)
 {
   autoware_bridge_util_->update_task_status(task_id, "RUNNING");
   // write your localization logic here and set the status and response.

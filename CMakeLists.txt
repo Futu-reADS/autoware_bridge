@@ -9,6 +9,8 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
+find_package(ftd_master_msgs REQUIRED)
+find_package(autoware_bridge_msgs REQUIRED)
 find_package(autoware_auto_msgs REQUIRED)
 find_package(autoware_auto_vehicle_msgs REQUIRED)
 find_package(autoware_auto_control_msgs REQUIRED)
@@ -45,6 +47,8 @@ add_executable(autoware_bridge_node
 ament_target_dependencies(autoware_bridge_node
   rclcpp
   std_msgs
+  ftd_master_msgs
+  autoware_bridge_msgs
   autoware_auto_msgs
   autoware_auto_vehicle_msgs
   autoware_auto_control_msgs

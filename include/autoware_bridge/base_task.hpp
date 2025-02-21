@@ -2,6 +2,8 @@
 #ifndef BASE_TASK_HPP
 #define BASE_TASK_HPP
 
+#include "geometry_msgs/msg/pose_stamped.hpp"
+
 #include <string>
 
 class BaseTask
@@ -9,8 +11,11 @@ class BaseTask
 public:
   virtual ~BaseTask() = default;
 
-  // Pure virtual function to execute the task.
-  virtual void execute(const std::string & task_id) = 0;
+  // The standard execute function.
+  virtual void execute(
+    const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose) = 0;
+
+  // virtual void execute(const std::string & task_id) = 0;
 
   // Pure virtual function to request cancellation.
   virtual void request_cancel() = 0;
