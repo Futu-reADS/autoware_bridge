@@ -8,35 +8,35 @@
 
 
 void AutowareBridgeUtil::updateTaskStatus(
-  const std::string & task_id, const std::string & request_type, const std::string & value, int number)
+  const std::string & task_id, TaskRequestType request_type, const std::string & value, int number)
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
 
-  if (task_status_.empty()){
-    task_status_[task_id] = TaskInfo();
+  if (task_map_.empty()){
+    task_map_[task_id] = TaskInfo();
   }
 
-  auto it = task_status_.find(task_id);
+  auto it = task_map_.find(task_id);
   
-  if ( it != task_status_.end() ){
+  if ( it != task_map_.end() ){
     TaskInfo & task_info = it->second;
     switch(request_type){
-      case "STATUS":
+      case TaskRequestType::STATUS:
       task_info.status = value;
         break;
-      case "REASON":
+      case TaskRequestType::REASON:
         it->second.reason = value;
         break;
-      case "RETRIES":
+      case TaskRequestType::RETRIES:
         task_info.retry_number = number;
         break;
-      case "TOTAL_RETRIES":
+      case TaskRequestType::TOTAL_RETRIES:
         task_info.total_retries = number;
         break;
-      case "CANCEL_STATUS":
+      case TaskRequestType::CANCEL_STATUS:
         task_info.cancel_info.status = value;
         break;
-      case "CANCEL_REASON":
+      case TaskRequestType::CANCEL_REASON:
         task_info.cancel_info.reason = value;
         break;
       default:
@@ -53,8 +53,8 @@ void AutowareBridgeUtil::updateTaskStatus(
 bool AutowareBridgeUtil::isTaskActive(const std::string & task_id)
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
-  auto it = task_status_.find(task_id);
-  if (it != task_status_.end()) {
+  auto it = task_map_.find(task_id);
+  if (it != task_map_.end()) {
     return true;
   }
   return false;
@@ -63,7 +63,7 @@ bool AutowareBridgeUtil::isTaskActive(const std::string & task_id)
 std::string AutowareBridgeUtil::getActiveTaskId()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
-  for (auto &[task_id, task_info] : task_status_) {
+  for (auto &[task_id, task_info] : task_map_) {
     return task_id;
   }
   return "NO_ACTIVE_TASK";
@@ -72,16 +72,16 @@ std::string AutowareBridgeUtil::getActiveTaskId()
 bool AutowareBridgeUtil::isActiveTaskIdEmpty()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
-  return task_status_.empty();
+  return task_map_.empty();
 }
 
 TaskInfo AutowareBridgeUtil::getTaskStatus(const std::string & task_id)
 {
   TaskInfo data;
   std::lock_guard<std::mutex> lock(task_mutex_);  // Ensure thread safety
-  auto it = task_status_.find(task_id);
+  auto it = task_map_.find(task_id);
 
-  if (it != task_status_.end()) {
+  if (it != task_map_.end()) {
     data = it->second;
   }
   else{
@@ -110,57 +110,23 @@ std::shared_ptr<BaseTask> AutowareBridgeUtil::getActiveTaskPointer()
   return active_task_;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // use when status is requested in terms of service.
 void AutowareBridgeUtil::handleStatusRequest(
   const std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Request> request,
   std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Response> response)
 {
-  std::lock_guard<std::mutex> lock(task_mutex_);
-
-  auto it = task_status_.find(request->task_id);
-  if (it != task_status_.end()) {
-    const TaskInfo & task_info = it->second;
-
-    response->success = true;
-    response->message = task_info.status;
+  if (isTaskActive(request->task_id)) {
+    std::lock_guard<std::mutex> lock(task_mutex_);
+    TaskInfo task_info = getTaskStatus(request->task_id);     // PENDING, RUNNING, RETRYING, SUCCESS, FAILED, CANCELLED
+    response->status = task_info.status;
     response->retry_number = task_info.retry_number;
     response->total_retries = task_info.total_retries;
-    response->rejection_reason = task_info.reason;
-
-  } else if (request->task_id != get_active_task_id()) {
-    response->success = false;
-    response->message = "REJECTED";
-    response->rejection_reason = "Requested task_id is not the last active one";
-  } else {
-    response->success = false;
-    response->message = "NOT_RUNNING";
+    response->reason = task_info.reason;
+  } 
+  else {
+    response->status = "REJECTED";
+    response->reason = "Requested task_id is not the last active one";
+    response->retry_number = 0;
+    response->total_retries = 0;
   }
 }

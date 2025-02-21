@@ -1,10 +1,10 @@
-#include "autoware_bridge/driving_task.hpp"
+#include "autoware_bridge/autonomous_driving.hpp"
 
 #include <chrono>
 #include <stdexcept>
 #include <thread>
 
-DrivingTask::DrivingTask(
+AutonomousDriving::AutonomousDriving(
   rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
   std::atomic<bool> & is_task_running)
 : node_(node),
@@ -14,7 +14,7 @@ DrivingTask::DrivingTask(
 {
 }
 
-void DrivingTask::execute(
+void AutonomousDriving::execute(
   const std::string & task_id, const geometry_msgs::msg::PoseStamped & /*pose*/)
 {
   autoware_bridge_util_->update_task_status(task_id, "RUNNING");
@@ -30,7 +30,7 @@ void DrivingTask::execute(
   }
 }
 
-void DrivingTask::request_cancel()
+void AutonomousDriving::request_cancel()
 {
   // is_canceled_ = true; // we can use any flag like this in above function to not execute or
   // we can write something here to send stop request.

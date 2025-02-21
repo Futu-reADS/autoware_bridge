@@ -1,5 +1,5 @@
-#ifndef LOCALIZATION_TASK_HPP
-#define LOCALIZATION_TASK_HPP
+#ifndef AUTONOMOUS_DRIVING_HPP
+#define AUTONOMOUS_DRIVING_HPP
 
 #include "autoware_bridge/autoware_bridge_util.hpp"
 #include "base_task.hpp"
@@ -9,15 +9,14 @@
 #include <atomic>
 #include <memory>
 
-class LocalizationTask : public BaseTask
+class AutonomousDriving : public BaseTask
 {
 public:
-  LocalizationTask(
+AutonomousDriving(
     rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
     std::atomic<bool> & is_task_running);
-
   void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
-    override;                      // Executes localization
+    override;                      // Executes Driving
   void request_cancel() override;  // Requests task cancellation
 
 private:
@@ -27,4 +26,4 @@ private:
   std::atomic<bool> & is_task_running_;
 };
 
-#endif  // LOCALIZATION_TASK_HPP
+#endif  // AUTONOMOUS_DRIVING_HPP

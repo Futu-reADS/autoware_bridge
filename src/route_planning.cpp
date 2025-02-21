@@ -1,10 +1,10 @@
-#include "autoware_bridge/set_goal_task.hpp"
+#include "autoware_bridge/route_planning.hpp"
 
 #include <chrono>
 #include <stdexcept>
 #include <thread>
 
-SetGoalTask::SetGoalTask(
+RoutePlanning::RoutePlanning(
   rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
   std::atomic<bool> & is_task_running)
 : node_(node),
@@ -14,13 +14,13 @@ SetGoalTask::SetGoalTask(
 {
 }
 
-void SetGoalTask::execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
+void RoutePlanning::execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
 {
   autoware_bridge_util_->update_task_status(task_id, "RUNNING");
 
   /* while (processing) {  // Example processing loop
     if (cancel_requested_) {  // Check if cancellation was requested
-      RCLCPP_INFO(rclcpp::get_logger("SetGoalTask"), "SetGoal task cancelled.");
+      RCLCPP_INFO(rclcpp::get_logger("RoutePlanning"), "SetGoal task cancelled.");
       return;  // Exit early
     }
 
@@ -40,7 +40,7 @@ void SetGoalTask::execute(const std::string & task_id, const geometry_msgs::msg:
   }
 }
 
-void SetGoalTask::request_cancel()
+void RoutePlanning::request_cancel()
 {
   // is_canceled_ = true; // we can use any flag like this in above function to not execute or
   // we can write something here to send stop request.

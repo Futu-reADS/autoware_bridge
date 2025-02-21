@@ -1,5 +1,5 @@
-#ifndef SET_GOAL_TASK_HPP
-#define SET_GOAL_TASK_HPP
+#ifndef ROUTE_PLANNING_HPP
+#define ROUTE_PLANNING_HPP
 
 #include "autoware_bridge/autoware_bridge_util.hpp"
 #include "base_task.hpp"
@@ -8,10 +8,10 @@
 
 #include <atomic>
 #include <memory>
-class SetGoalTask : public BaseTask
+class RoutePlanning : public BaseTask
 {
 public:
-  SetGoalTask(
+  RoutePlanning(
     rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
     std::atomic<bool> & is_task_running);
 
@@ -26,4 +26,4 @@ private:
   std::atomic<bool> & is_task_running_;
 };
 
-#endif  // SET_GOAL_TASK_HPP
+#endif  // ROUTE_PLANNING_HPP

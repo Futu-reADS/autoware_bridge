@@ -1,10 +1,10 @@
-#include "autoware_bridge/localization_task.hpp"
+#include "autoware_bridge/localization.hpp"
 
 #include <chrono>
 #include <stdexcept>
 #include <thread>
 
-LocalizationTask::LocalizationTask(
+Localization::Localization(
   rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
   std::atomic<bool> & is_task_running)
 : node_(node),
@@ -14,14 +14,14 @@ LocalizationTask::LocalizationTask(
 {
 }
 
-void LocalizationTask::execute(
+void Localization::execute(
   const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
 {
   autoware_bridge_util_->update_task_status(task_id, "RUNNING");
 
   /* while (processing) {  // Example processing loop
     if (cancel_requested_) {  // Check if cancellation was requested
-      RCLCPP_INFO(rclcpp::get_logger("LocalizationTask"), "Localization task cancelled.");
+      RCLCPP_INFO(rclcpp::get_logger("Localization"), "Localization task cancelled.");
       return;  // Exit early
     }
 
@@ -50,7 +50,7 @@ void LocalizationTask::execute(
   }
 }
 
-void LocalizationTask::request_cancel()
+void Localization::request_cancel()
 {
   cancel_requested_ = true;
 }

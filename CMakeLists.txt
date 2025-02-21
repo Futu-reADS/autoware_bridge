@@ -30,7 +30,6 @@ include_directories(
 # Service files
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetTaskStatus.srv"
-  "srv/CancelTask.srv"
   DEPENDENCIES std_msgs
 )
 
