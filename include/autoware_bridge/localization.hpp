@@ -16,8 +16,7 @@ enum class LocalizationTaskState {
   UNINITIALIZED,
   INITIALIZATION,
   LOCALIZATION,
-  LOCALIZATION_CHECK,
-  WAIT_UI
+  LOCALIZATION_CHECK
 };
 
 enum class LocalizationInitializationState { UNKNOWN, UNINITIALIZED, INITIALIZING, INITIALIZED };

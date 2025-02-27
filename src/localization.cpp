@@ -25,153 +25,115 @@ void Localization::execute(
   const std::string & task_id, const geometry_msgs::msg::PoseStamped & init_pose)
 {
   autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "RUNNING");
+  autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::TOTAL_RETRIES, "", 5);
   is_task_running_ = true;
 
   // Maximum number of initialization retries
   const int MAX_INIT_RETRIES = 5;
-  int init_retry_counter = 0;
+  int retry_counter = 0;
 
   while (true) {
+    mutex.lock();
+
     if (cancel_requested_.load()) {
-      is_task_running_ = false;
       autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "CANCELLED");
-      autoware_bridge_util_->updateTaskStatus(
-        task_id, TaskRequestType::REASON, "Cancelled by user");
+      autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::REASON, "Cancelled by user");
       RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
+      is_task_running_ = false;
       return;
     }
 
-    switch (state_) {
-      case LocalizationTaskState::UNINITIALIZED:
-        sendCmdGate();
-        state_ = LocalizationTaskState::INITIALIZATION;
-        RCLCPP_INFO(node_->get_logger(), "Localization state: UNINITIALIZED -> INITIALIZATION");
-        break;
+    if (retry_counter >= MAX_INIT_RETRIES){
+      //FAILURE
 
-      case LocalizationTaskState::INITIALIZATION:
-        std::this_thread::sleep_for(500ms);
-        // Reset the retry counter when starting initialization
-        init_retry_counter = 0;
-        loc_state_ = LocalizationInitializationState::INITIALIZED;
-        localization_quality_ = true;
-        RCLCPP_INFO(node_->get_logger(), "Localization system ready (simulated).");
-        pubInitPose(init_pose);
-        state_ = LocalizationTaskState::LOCALIZATION;
-        RCLCPP_INFO(node_->get_logger(), "Localization state: INITIALIZATION -> LOCALIZATION");
-        break;
-
-      case LocalizationTaskState::LOCALIZATION:
-        RCLCPP_INFO(
-          node_->get_logger(), "Localizing... Quality: %s", localization_quality_ ? "good" : "bad");
-        if (loc_state_ == LocalizationInitializationState::INITIALIZED) {
-          localization_start_time_ = std::chrono::steady_clock::now();
-          state_ = LocalizationTaskState::LOCALIZATION_CHECK;
-          RCLCPP_INFO(
-            node_->get_logger(), "Localization state: LOCALIZATION -> LOCALIZATION_CHECK");
-        } else if (
-          loc_state_ == LocalizationInitializationState::UNKNOWN ||
-          loc_state_ == LocalizationInitializationState::INITIALIZING) {
-          std::this_thread::sleep_for(100ms);  // Prevent busy looping
-        } else {
-          // Unexpected loc_state_, retry initialization
-          init_retry_counter++;
-          if (init_retry_counter > MAX_INIT_RETRIES) {
-            // Exceeded allowed retries: exit with failure.
-            is_task_running_ = false;
-            autoware_bridge_util_->updateTaskStatus(
-              task_id, TaskRequestType::STATUS, "FAILED", init_retry_counter);
-            autoware_bridge_util_->updateTaskStatus(
-              task_id, TaskRequestType::REASON, "Exceeded maximum initialization retries");
-            RCLCPP_ERROR(
-              node_->get_logger(),
-              "Localization task %s failed: Exceeded maximum initialization retries",
-              task_id.c_str());
-            return;
-          }
-          RCLCPP_WARN(
-            node_->get_logger(),
-            "Unexpected localization state encountered. Retrying initialization (%d/%d)...",
-            init_retry_counter, MAX_INIT_RETRIES);
-          state_ = LocalizationTaskState::INITIALIZATION;
-        }
-        break;
-
-      case LocalizationTaskState::LOCALIZATION_CHECK: {
-        try {
-          for (int i = 0; i < 20; ++i) {
-            if (cancel_requested_.load()) {
-              is_task_running_ = false;
-              autoware_bridge_util_->updateTaskStatus(
-                task_id, TaskRequestType::STATUS, "CANCELLED");
-              autoware_bridge_util_->updateTaskStatus(
-                task_id, TaskRequestType::REASON, "Cancelled by user");
-              RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
-              return;
-            }
-            std::this_thread::sleep_for(100ms);
-          }
-          if (std::rand() % 5 == 0) {
-            throw std::runtime_error("Simulated localization error");
-          }
-          state_ = LocalizationTaskState::WAIT_UI;
-          RCLCPP_INFO(node_->get_logger(), "Localization state: LOCALIZATION_CHECK -> WAIT_UI");
-        } catch (const std::exception & e) {
-          is_task_running_ = false;
-          autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "FAILED");
-          autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::REASON, e.what());
-          RCLCPP_ERROR(
-            node_->get_logger(), "Localization task %s failed: %s", task_id.c_str(), e.what());
-          return;
-        }
-        break;
-      }
-
-      case LocalizationTaskState::WAIT_UI:
-        autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
-        RCLCPP_INFO(node_->get_logger(), "Localization completed successfully.");
-        is_task_running_ = false;
-        return;
-
-      default:
-        RCLCPP_WARN(node_->get_logger(), "Unknown localization state encountered.");
-        is_task_running_ = false;
-        return;
+      updateFailStatus(task_id, "Max retries elapsed");
+      // autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "FAILED");
+      // autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::REASON, "Max retries elapsed");
+      is_task_running_ = false;
+      break;
     }
 
-    std::this_thread::sleep_for(100ms);
+    if (success){
+      //SUCCESS
+      autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
+      is_task_running_ = false;
+      break;
+    }
+
+    switch (state_) {
+      // sendCmdGate(); // check this whether required or not
+
+      case LocalizationTaskState::INITIALIZATION:
+        if (retry_counter == 1) {
+          autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "RETRYING");
+        }
+        retry_counter++;
+        autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::RETRIES, "", retry_counter);
+
+        pubInitPose(init_pose);
+        std::this_thread::sleep_for(500ms);
+        state_ = LocalizationTaskState::LOCALIZATION;
+
+      case LocalizationTaskState::LOCALIZATION:
+
+        switch (this->localization_state_) {
+          case LocalizationInitializationState::UNINITIALIZED:
+            state_ = LocalizationTaskState::INITIALIZATION;
+            break;
+
+          case LocalizationInitializationState::INITIALIZED:
+            localization_start_time_ = this->get_clock()->now();
+            state_ = LocalizationTaskState::LOCALIZATION_CHECK;
+            break;
+          default:
+            RCLCPP_INFO(node_->get_logger(), "Localization state: %s", localization_state_);
+        }
+
+      case LocalizationTaskState::LOCALIZATION_CHECK:
+        
+        if ( this->get_clock()->now().seconds() - localization_start_time_.seconds() > LOC_WAIT_TIMEOUT_S ) {
+          if (this->localization_quality_) {
+            bool success = true;
+            // autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
+            // break;
+          } 
+          else {
+            RCLCPP_INFO(this->get_logger(), "Localisation quality is poor, retrying localization");
+            this->ftd_state_ = LocalizationInitializationState::INITIALIZATION;
+          }
+        } 
+        else {
+          RCLCPP_INFO_THROTTLE(
+            this->get_logger(), *this->get_clock(), 1000, "Waiting for localization result");
+        }
+
+      default:
+        break;
+    }
   }
+  // std::this_thread::sleep_for(100ms);
 }
 void Localization::request_cancel()
 {
+  mutex.lock();
   cancel_requested_ = true;
 }
 
+// make it a callback to update the status
 bool Localization::isLocalizationQualityAcceptable() const
 {
   return localization_quality_;
 }
 
-void Localization::sendCmdGate()
-{
-  RCLCPP_INFO(node_->get_logger(), "Sending command to gate...");
-}
+// check it's usability
+// void Localization::sendCmdGate()
+// {
+//   RCLCPP_INFO(node_->get_logger(), "Sending command to gate...");
+// }
 
 void Localization::pubInitPose(const geometry_msgs::msg::PoseStamped & init_pose)
 {
-  geometry_msgs::msg::PoseWithCovarianceStamped target_pose;
-  target_pose.header.frame_id = "map";
-  target_pose.header.stamp = node_->now();
-
-  target_pose.pose.pose = init_pose.pose;  // Copy pose from input PoseStamped
-
-  // If needed, add covariance values (defaulting to zero here)
-  for (int i = 0; i < 36; i++) {
-    target_pose.pose.covariance[i] = (i % 7 == 0) ? 0.1 : 0.0;  // Example covariance
-  }
-
-  RCLCPP_INFO(
-    node_->get_logger(), "Publishing initial pose: (%.2f, %.2f, %.2f)", init_pose.pose.position.x,
-    init_pose.pose.position.y, init_pose.pose.position.z);
-
-  init_pose_publisher_->publish(target_pose);
+  // geometry_msgs::msg::PoseStamped target_pose;
+  // target_pose = init_pose;  // Copy pose from input PoseStamped
+  init_pose_publisher_->publish(init_pose);
 }
