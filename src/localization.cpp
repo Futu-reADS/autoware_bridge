@@ -2,6 +2,7 @@
 
 #include <chrono>
 #include <cstdlib>
+#include <mutex>
 #include <stdexcept>
 #include <thread>
 
@@ -14,11 +15,20 @@ Localization::Localization(
   cancel_requested_(false),
   is_task_running_(is_task_running),
   state_(LocalizationTaskState::UNINITIALIZED),
-  loc_state_(LocalizationInitializationState::UNKNOWN),
+  localization_state_(LocalizationInitializationState::UNKNOWN),
   localization_quality_(false)
 {
   init_pose_publisher_ =
-    node_->create_publisher<geometry_msgs::msg::PoseWithCovarianceStamped>("/initialpose", 10);
+    node_->create_publisher<geometry_msgs::msg::PoseStamped>("/initialpose", 10);
+
+  localization_state_subscriber_ = node_->create_subscription<LocalizationInitializationState>(
+    "/api/localization/initialization_state", 10,
+    std::bind(&Localization::localization_state_sub_callback, this, std::placeholders::_1));
+
+  localization_quality_subscriber_ = node_->create_subscription<ModeChangeAvailable>(
+    "/system/component_state_monitor/component/autonomous/localization",
+    rclcpp::QoS(1).transient_local(),
+    std::bind(&Localization::localization_quality_sub_callback, this, std::placeholders::_1));
 }
 
 void Localization::execute(
@@ -31,82 +41,84 @@ void Localization::execute(
   // Maximum number of initialization retries
   const int MAX_INIT_RETRIES = 5;
   int retry_counter = 0;
+  bool success = false;
 
   while (true) {
-    mutex.lock();
+    std::lock_guard<std::mutex> lock(task_mutex_);
 
     if (cancel_requested_.load()) {
       autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "CANCELLED");
-      autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::REASON, "Cancelled by user");
+      autoware_bridge_util_->updateTaskStatus(
+        task_id, TaskRequestType::REASON, "Cancelled by user");
       RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
       is_task_running_ = false;
       return;
     }
 
-    if (retry_counter >= MAX_INIT_RETRIES){
-      //FAILURE
+    if (retry_counter >= MAX_INIT_RETRIES) {
+      // FAILURE
 
-      updateFailStatus(task_id, "Max retries elapsed");
-      // autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "FAILED");
-      // autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::REASON, "Max retries elapsed");
+      // updateFailStatus(task_id, "Max retries elapsed");------>Implement it
+      autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "FAILED");
+      autoware_bridge_util_->updateTaskStatus(
+        task_id, TaskRequestType::REASON, "Max retries elapsed");
       is_task_running_ = false;
       break;
     }
 
-    if (success){
-      //SUCCESS
+    if (success) {
+      // SUCCESS
       autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
       is_task_running_ = false;
       break;
     }
 
     switch (state_) {
-      // sendCmdGate(); // check this whether required or not
+        // sendCmdGate(); // check this whether required or not
 
       case LocalizationTaskState::INITIALIZATION:
         if (retry_counter == 1) {
           autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "RETRYING");
         }
         retry_counter++;
-        autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::RETRIES, "", retry_counter);
+        autoware_bridge_util_->updateTaskStatus(
+          task_id, TaskRequestType::RETRIES, "", retry_counter);
 
         pubInitPose(init_pose);
         std::this_thread::sleep_for(500ms);
         state_ = LocalizationTaskState::LOCALIZATION;
-
+        break;
       case LocalizationTaskState::LOCALIZATION:
 
-        switch (this->localization_state_) {
+        switch (localization_state_) {
           case LocalizationInitializationState::UNINITIALIZED:
             state_ = LocalizationTaskState::INITIALIZATION;
             break;
 
           case LocalizationInitializationState::INITIALIZED:
-            localization_start_time_ = this->get_clock()->now();
+            localization_start_time_ = node_->get_clock()->now();
             state_ = LocalizationTaskState::LOCALIZATION_CHECK;
             break;
           default:
-            RCLCPP_INFO(node_->get_logger(), "Localization state: %s", localization_state_);
+            RCLCPP_INFO(node_->get_logger(), "Localization state: %d", localization_state_);
+            break;
         }
-
+        break;
       case LocalizationTaskState::LOCALIZATION_CHECK:
-        
-        if ( this->get_clock()->now().seconds() - localization_start_time_.seconds() > LOC_WAIT_TIMEOUT_S ) {
-          if (this->localization_quality_) {
-            bool success = true;
-            // autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
-            // break;
-          } 
-          else {
-            RCLCPP_INFO(this->get_logger(), "Localisation quality is poor, retrying localization");
-            this->ftd_state_ = LocalizationInitializationState::INITIALIZATION;
+        if (
+          node_->get_clock()->now().seconds() - localization_start_time_.seconds() >
+          LOC_WAIT_TIMEOUT_S) {
+          if (localization_quality_) {
+            success = true;
+          } else {
+            RCLCPP_INFO(node_->get_logger(), "Localisation quality is poor, retrying localization");
+            state_ = LocalizationTaskState::INITIALIZATION;
           }
-        } 
-        else {
+        } else {
           RCLCPP_INFO_THROTTLE(
-            this->get_logger(), *this->get_clock(), 1000, "Waiting for localization result");
+            node_->get_logger(), *node_->get_clock(), 1000, "Waiting for localization result");
         }
-
+        break;
       default:
         break;
     }
@@ -115,16 +127,21 @@ void Localization::execute(
 }
 void Localization::request_cancel()
 {
-  mutex.lock();
+  std::lock_guard<std::mutex> lock(task_mutex_);
   cancel_requested_ = true;
 }
 
 // make it a callback to update the status
-bool Localization::isLocalizationQualityAcceptable() const
+
+void Localization::localization_quality_sub_callback(const ModeChangeAvailable msg)
 {
-  return localization_quality_;
+  this->localization_quality_ = msg.available;
 }
 
+void Localization::localization_state_sub_callback(const LocalizationInitializationState msg)
+{
+  this->localization_state_ = msg.state;
+}
 // check it's usability
 // void Localization::sendCmdGate()
 // {

@@ -6,8 +6,9 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include <autoware_adapi_v1_msgs/msg/localization_initialization_state.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
-#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
+#include <tier4_system_msgs/msg/mode_change_available.hpp>
 
 #include <atomic>
 #include <memory>
@@ -19,7 +20,7 @@ enum class LocalizationTaskState {
   LOCALIZATION_CHECK
 };
 
-enum class LocalizationInitializationState { UNKNOWN, UNINITIALIZED, INITIALIZING, INITIALIZED };
+// enum class LocalizationInitializationState { UNKNOWN, UNINITIALIZED, INITIALIZING, INITIALIZED };
 
 class Localization : public BaseTask
 {
@@ -31,7 +32,14 @@ public:
   void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & init_pose)
     override;                      // Executes localization
   void request_cancel() override;  // Requests task cancellation
-  bool isLocalizationQualityAcceptable() const;
+
+  // Alias
+  using LocalizationInitializationState =
+    autoware_adapi_v1_msgs::msg::LocalizationInitializationState;
+
+  using ModeChangeAvailable = tier4_system_msgs::msg::ModeChangeAvailable;
+  // geometry_msgs
+  using PoseStamped = geometry_msgs::msg::PoseStamped;
 
 private:
   rclcpp::Node::SharedPtr node_;
@@ -40,9 +48,11 @@ private:
   std::atomic<bool> & is_task_running_;
 
   LocalizationTaskState state_;
-  LocalizationInitializationState loc_state_;
+  uint16_t localization_state_;
   bool localization_quality_;
-  std::chrono::steady_clock::time_point localization_start_time_;
+  rclcpp::Time localization_start_time_;
+
+  std::mutex task_mutex_;
 
   // Timeout threshold (in seconds) for localization processing.
   const double LOC_WAIT_TIMEOUT_S = 10.0;
@@ -51,7 +61,15 @@ private:
   void sendCmdGate();
   void pubInitPose(const geometry_msgs::msg::PoseStamped & init_pose);
 
-  rclcpp::Publisher<geometry_msgs::msg::PoseWithCovarianceStamped>::SharedPtr init_pose_publisher_;
+  // callbacks
+  void localization_quality_sub_callback(const ModeChangeAvailable msg);
+  void localization_state_sub_callback(const LocalizationInitializationState msg);
+  // Publisher
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr init_pose_publisher_;
+
+  // Subscriber
+  rclcpp::Subscription<LocalizationInitializationState>::SharedPtr localization_state_subscriber_;
+  rclcpp::Subscription<ModeChangeAvailable>::SharedPtr localization_quality_subscriber_;
 };
 
 #endif  // LOCALIZATION_HPP
