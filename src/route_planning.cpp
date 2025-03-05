@@ -48,9 +48,6 @@ void RoutePlanning::execute(
     }
 
     if (retry_counter >= MAX_INIT_RETRIES) {
-      // FAILURE
-
-      // updateFailStatus(task_id, "Max retries elapsed");------>Implement it
       autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "FAILED");
       autoware_bridge_util_->updateTaskStatus(
         task_id, TaskRequestType::REASON, "Max retries elapsed");
@@ -59,7 +56,6 @@ void RoutePlanning::execute(
     }
 
     if (success) {
-      // SUCCESS
       autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
       is_task_running_ = false;
       break;
@@ -67,23 +63,23 @@ void RoutePlanning::execute(
 
     switch (state_) {
       case RoutePlanningTaskState::SET_GOAL:
+
+        if (retry_counter == 1) {
+          autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "RETRYING");
+        }
+        retry_counter++;
+        autoware_bridge_util_->updateTaskStatus(
+          task_id, TaskRequestType::RETRIES, "", retry_counter);
+        
         pub_target_pose(goal_pose);
         planning_start_time_ = node_->get_clock()->now();
         state_ = RoutePlanningTaskState::WAIT_FOR_AUTOWARE_ROUTE_PLANNING;
         break;
 
       case RoutePlanningTaskState::WAIT_FOR_AUTOWARE_ROUTE_PLANNING:
-        if (
-          node_->get_clock()->now().seconds() - planning_start_time_.seconds() >
-          PLAN_WAIT_TIMEOUT_S) {
+        if ( node_->get_clock()->now().seconds() - planning_start_time_.seconds() > PLAN_WAIT_TIMEOUT_S) {
           RCLCPP_ERROR(this->get_logger(), "Planning error, timeout expired");
           state_ = RoutePlanningTaskState::SET_GOAL;
-          if (retry_counter == 1) {
-            autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "RETRYING");
-          }
-          retry_counter++;
-          autoware_bridge_util_->updateTaskStatus(
-            task_id, TaskRequestType::RETRIES, "", retry_counter);
           break;
         }
 
@@ -99,6 +95,7 @@ void RoutePlanning::execute(
             break;
 
           case RouteState::SET:
+            planning_start_time_ = node_->get_clock()->now();
             state_ = RoutePlanningTaskState::WAIT_FOR_AUTOWARE_TO_ENABLE_AUTO_MODE;
             break;
 
@@ -121,8 +118,8 @@ void RoutePlanning::execute(
           success = true;
           RCLCPP_INFO(node_->get_logger(), "AUTO mode Enabled ");
         }  // else on the basis of timer for example 5sec , Go for a retry
-        else if (node_->get_clock()->now().seconds() - planning_start_time_.seconds() >= 5) {
-          state_ = RoutePlanningTaskState::WAIT_FOR_AUTOWARE_ROUTE_PLANNING;
+        else if (node_->get_clock()->now().seconds() - planning_start_time_.seconds() >= 10) {
+          state_ = RoutePlanningTaskState::SET_GOAL;
           // retry_counter++;
           RCLCPP_INFO_THROTTLE(
             this->get_logger(), *this->get_clock(), 1000,
@@ -135,6 +132,7 @@ void RoutePlanning::execute(
     }
   }
 }
+
 void RoutePlanning::request_cancel()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
