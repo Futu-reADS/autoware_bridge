@@ -11,16 +11,18 @@ RoutePlanning::RoutePlanning(
 : node_(node),
   autoware_bridge_util_(autoware_bridge_util),
   cancel_requested_(false),
+  is_task_running_(is_task_running),
   state_(RoutePlanningTaskState::SET_GOAL),
-  is_task_running_(is_task_running)
+
 {
   route_state_sub_ = node_->create_subscription<RouteState>(
     "/api/routing/state", 10,
-    std::bind(&RoutePlanning::route_state_sub_callback, this, std::placeholders::_1));
+    std::bind(&RoutePlanning::routeStateCallback, this, std::placeholders::_1));
   operation_mode_state_sub_ = node_->create_subscription<OperationModeState>(
     "/api/operation_mode/state", 10,
-    std::bind(&RoutePlanning::operation_mode_state_sub_callback, this, std::placeholders::_1));
-  target_goal_pub_ = this->create_publisher<PoseStamped>("/planning/mission_planning/goal", 10);
+    std::bind(&RoutePlanning::operationModeStateCallback, this, std::placeholders::_1));
+  target_goal_pub_ =
+    node_->create_publisher<geometry_msgs::msg::PoseStamped>("/planning/mission_planning/goal", 10);
 }
 
 void RoutePlanning::execute(
@@ -70,15 +72,17 @@ void RoutePlanning::execute(
         retry_counter++;
         autoware_bridge_util_->updateTaskStatus(
           task_id, TaskRequestType::RETRIES, "", retry_counter);
-        
-        pub_target_pose(goal_pose);
+
+        publishTargetPose(goal_pose);
         planning_start_time_ = node_->get_clock()->now();
         state_ = RoutePlanningTaskState::WAIT_FOR_AUTOWARE_ROUTE_PLANNING;
         break;
 
       case RoutePlanningTaskState::WAIT_FOR_AUTOWARE_ROUTE_PLANNING:
-        if ( node_->get_clock()->now().seconds() - planning_start_time_.seconds() > PLAN_WAIT_TIMEOUT_S) {
-          RCLCPP_ERROR(this->get_logger(), "Planning error, timeout expired");
+        if (
+          node_->get_clock()->now().seconds() - planning_start_time_.seconds() >
+          PLAN_WAIT_TIMEOUT_S) {
+          RCLCPP_ERROR(node_->get_logger(), "Planning error, timeout expired");
           state_ = RoutePlanningTaskState::SET_GOAL;
           break;
         }
@@ -122,7 +126,7 @@ void RoutePlanning::execute(
           state_ = RoutePlanningTaskState::SET_GOAL;
           // retry_counter++;
           RCLCPP_INFO_THROTTLE(
-            this->get_logger(), *this->get_clock(), 1000,
+            node_->get_logger(), *node_->get_clock(), 1000,
             "Autonomous operation mode is still not active... retrying planning please wait.....");
         }
         break;
@@ -139,17 +143,17 @@ void RoutePlanning::request_cancel()
   cancel_requested_ = true;
 }
 
-void RoutePlanning::pub_target_pose(const geometry_msgs::msg::PoseStamped & goal_pose)
+void RoutePlanning::publishTargetPose(const geometry_msgs::msg::PoseStamped & goal_pose)
 {
-  target_goal_pub->publish(goal_pose);
+  target_goal_pub_->publish(goal_pose);
 }
 
-void RoutePlanning::route_state_sub_callback(const RouteState msg)
+void RoutePlanning::routeStateCallback(const RouteState msg)
 {
   route_state_ = msg.state;
 }
 
-void RoutePlanning::operation_mode_state_sub_callback(const OperationModeState msg)
+void RoutePlanning::operationModeStateCallback(const OperationModeState msg)
 {
   operation_mode_state_ = msg;
 }

@@ -6,14 +6,19 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include <autoware_adapi_v1_msgs/msg/operation_mode_state.hpp>
+#include <autoware_adapi_v1_msgs/msg/route_state.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+
 #include <atomic>
 #include <memory>
 
+const double PLAN_WAIT_TIMEOUT_S = 10.0;
+
 enum class RoutePlanningTaskState {
-  UNINITIALIZED,
-  INITIALIZATION,
-  LOCALIZATION,
-  LOCALIZATION_CHECK
+  SET_GOAL,
+  WAIT_FOR_AUTOWARE_ROUTE_PLANNING,
+  WAIT_FOR_AUTOWARE_TO_ENABLE_AUTO_MODE
 };
 
 class RoutePlanning : public BaseTask
@@ -27,22 +32,35 @@ public:
     override;                      // Executes SetGoal
   void request_cancel() override;  // Requests task cancellation
 
+  using OperationModeState = autoware_adapi_v1_msgs::msg::OperationModeState;
+  using RouteState = autoware_adapi_v1_msgs::msg::RouteState;
+  using PoseStamped = geometry_msgs::msg::PoseStamped;
+
 private:
   rclcpp::Node::SharedPtr node_;
-  RoutePlanningTaskState state_;
   std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;  // Use shared_ptr instead of reference
   std::atomic<bool> cancel_requested_;
   std::atomic<bool> & is_task_running_;
+  RoutePlanningTaskState state_;
+
   uint16_t route_state_;
-  rclcpp::Time planning_start_time_;
   OperationModeState operation_mode_state_;
+
+  rclcpp::Time planning_start_time_;
+  std::mutex task_mutex_;
   // Subscriber
   rclcpp::Subscription<RouteState>::SharedPtr route_state_sub_;
   rclcpp::Subscription<OperationModeState>::SharedPtr operation_mode_state_sub_;
+
+  // Publisher
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_goal_pub_;
+
   // callback
-  void route_state_sub_callback(const RouteState msg);
-  void operation_mode_state_sub_callback(const OperationModeState msg);
+  void routeStateCallback(const RouteState msg);
+  void operationModeStateCallback(const OperationModeState msg);
+
+  // Helper function
+  void publishTargetPose(const geometry_msgs::msg::PoseStamped & goal_pose);
 };
 
 #endif  // ROUTE_PLANNING_HPP
