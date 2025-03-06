@@ -12,8 +12,7 @@ RoutePlanning::RoutePlanning(
   autoware_bridge_util_(autoware_bridge_util),
   cancel_requested_(false),
   is_task_running_(is_task_running),
-  state_(RoutePlanningTaskState::SET_GOAL),
-
+  state_(RoutePlanningTaskState::SET_GOAL)
 {
   route_state_sub_ = node_->create_subscription<RouteState>(
     "/api/routing/state", 10,

@@ -20,7 +20,7 @@ enum class LocalizationTaskState {
   LOCALIZATION_CHECK
 };
 
-// enum class LocalizationInitializationState { UNKNOWN, UNINITIALIZED, INITIALIZING, INITIALIZED };
+const double LOC_WAIT_TIMEOUT_S = 10.0;
 
 class Localization : public BaseTask
 {
@@ -53,9 +53,6 @@ private:
   rclcpp::Time localization_start_time_;
 
   std::mutex task_mutex_;
-
-  // Timeout threshold (in seconds) for localization processing.
-  const double LOC_WAIT_TIMEOUT_S = 10.0;
 
   // Helper methods
   void sendCmdGate();
