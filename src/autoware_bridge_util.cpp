@@ -49,6 +49,31 @@ void AutowareBridgeUtil::updateTaskStatus(
   }
 }
 
+void AutowareBridgeUtil::updateFailStatus(const std::string & task_id, const std::string & reason)
+{
+  updateTaskStatus(task_id, TaskRequestType::STATUS, "FAILED");
+  updateTaskStatus(task_id, TaskRequestType::REASON, reason);
+}
+
+void AutowareBridgeUtil::updateSuccessStatus(const std::string & task_id)
+{
+  updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
+}
+
+void AutowareBridgeUtil::updateCancellationStatus(
+  const std::string & task_id, const std::string & reason)
+{
+  updateTaskStatus(task_id, TaskRequestType::STATUS, "CANCELLED");
+  updateTaskStatus(task_id, TaskRequestType::REASON, reason);
+}
+
+void AutowareBridgeUtil::updateRunningStatus(const std::string & task_id, const int total_retries)
+{
+  // Update task status to RUNNING
+  updateTaskStatus(task_id, TaskRequestType::STATUS, "RUNNING");
+  // Update total retries
+  updateTaskStatus(task_id, TaskRequestType::TOTAL_RETRIES, "", total_retries);
+}
 bool AutowareBridgeUtil::isTaskActive(const std::string & task_id)
 {
   std::lock_guard<std::mutex> lock(task_mutex_);

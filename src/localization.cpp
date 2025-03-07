@@ -1,9 +1,6 @@
 #include "autoware_bridge/localization.hpp"
 
 #include <chrono>
-#include <cstdlib>
-#include <mutex>
-#include <stdexcept>
 #include <thread>
 
 using namespace std::chrono_literals;
@@ -16,30 +13,29 @@ Localization::Localization(
   is_task_running_(is_task_running),
   state_(LocalizationTaskState::UNINITIALIZED),
   localization_state_(LocalizationInitializationState::UNKNOWN),
-  localization_quality_(false)
+  localization_quality_(false),
+  localization_start_time_(rclcpp::Time(0))
 {
   init_pose_publisher_ =
     node_->create_publisher<geometry_msgs::msg::PoseStamped>("/initialpose", 10);
 
   localization_state_subscriber_ = node_->create_subscription<LocalizationInitializationState>(
     "/api/localization/initialization_state", 10,
-    std::bind(&Localization::localization_state_sub_callback, this, std::placeholders::_1));
+    std::bind(&Localization::localizationStateCallback, this, std::placeholders::_1));
 
   localization_quality_subscriber_ = node_->create_subscription<ModeChangeAvailable>(
     "/system/component_state_monitor/component/autonomous/localization",
     rclcpp::QoS(1).transient_local(),
-    std::bind(&Localization::localization_quality_sub_callback, this, std::placeholders::_1));
+    std::bind(&Localization::localizationQualityCallback, this, std::placeholders::_1));
 }
 
 void Localization::execute(
   const std::string & task_id, const geometry_msgs::msg::PoseStamped & init_pose)
 {
-  autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "RUNNING");
-  autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::TOTAL_RETRIES, "", 5);
+  autoware_bridge_util_->updateRunningStatus(task_id, 5);
   is_task_running_ = true;
 
   // Maximum number of initialization retries
-  const int MAX_INIT_RETRIES = 5;
   int retry_counter = 0;
   bool success = false;
 
@@ -47,9 +43,7 @@ void Localization::execute(
     std::lock_guard<std::mutex> lock(task_mutex_);
 
     if (cancel_requested_.load()) {
-      autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "CANCELLED");
-      autoware_bridge_util_->updateTaskStatus(
-        task_id, TaskRequestType::REASON, "Cancelled by user");
+      autoware_bridge_util_->updateCancellationStatus(task_id, "Cancelled by user");
       RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
       is_task_running_ = false;
       return;
@@ -57,18 +51,14 @@ void Localization::execute(
 
     if (retry_counter >= MAX_INIT_RETRIES) {
       // FAILURE
-
-      // updateFailStatus(task_id, "Max retries elapsed");------>Implement it
-      autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "FAILED");
-      autoware_bridge_util_->updateTaskStatus(
-        task_id, TaskRequestType::REASON, "Max retries elapsed");
+      autoware_bridge_util_->updateFailStatus(task_id, "Max retries elapsed");
       is_task_running_ = false;
       break;
     }
 
     if (success) {
       // SUCCESS
-      autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
+      autoware_bridge_util_->updateSuccessStatus(task_id);
       is_task_running_ = false;
       break;
     }
@@ -101,6 +91,7 @@ void Localization::execute(
             break;
           default:
             RCLCPP_INFO(node_->get_logger(), "Localization state: %d", localization_state_);
+            // This may lead to busy loop , is there any other thing which we can do here?
             break;
         }
         break;
@@ -133,14 +124,14 @@ void Localization::request_cancel()
 
 // make it a callback to update the status
 
-void Localization::localization_quality_sub_callback(const ModeChangeAvailable msg)
+void Localization::localizationQualityCallback(const ModeChangeAvailable & msg)
 {
-  this->localization_quality_ = msg.available;
+  localization_quality_ = msg.available;
 }
 
-void Localization::localization_state_sub_callback(const LocalizationInitializationState msg)
+void Localization::localizationStateCallback(const LocalizationInitializationState & msg)
 {
-  this->localization_state_ = msg.state;
+  localization_state_ = msg.state;
 }
 // check it's usability
 // void Localization::sendCmdGate()
@@ -150,7 +141,5 @@ void Localization::localization_state_sub_callback(const LocalizationInitializat
 
 void Localization::pubInitPose(const geometry_msgs::msg::PoseStamped & init_pose)
 {
-  // geometry_msgs::msg::PoseStamped target_pose;
-  // target_pose = init_pose;  // Copy pose from input PoseStamped
   init_pose_publisher_->publish(init_pose);
 }

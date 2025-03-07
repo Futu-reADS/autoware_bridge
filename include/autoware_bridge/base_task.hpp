@@ -2,6 +2,8 @@
 #ifndef BASE_TASK_HPP
 #define BASE_TASK_HPP
 
+#include "autoware_bridge/autoware_bridge_util.hpp"
+
 #include "geometry_msgs/msg/pose_stamped.hpp"
 
 #include <string>

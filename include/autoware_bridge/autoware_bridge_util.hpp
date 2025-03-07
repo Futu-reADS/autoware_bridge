@@ -40,6 +40,10 @@ public:
   void updateTaskStatus(
     const std::string & task_id, TaskRequestType request_type, const std::string & value,
     int number = 0);
+  void updateFailStatus(const std::string & task_id, const std::string & reason);
+  void updateSuccessStatus(const std::string & task_id);
+  void updateCancellationStatus(const std::string & task_id, const std::string & reason);
+  void updateRunningStatus(const std::string & task_id, const int total_retries);
 
   bool isTaskActive(const std::string & task_id);
   std::string getActiveTaskId();

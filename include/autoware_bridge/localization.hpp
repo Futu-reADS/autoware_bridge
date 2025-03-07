@@ -12,6 +12,7 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 
 enum class LocalizationTaskState {
   UNINITIALIZED,
@@ -21,6 +22,7 @@ enum class LocalizationTaskState {
 };
 
 const double LOC_WAIT_TIMEOUT_S = 10.0;
+const int MAX_INIT_RETRIES = 5;
 
 class Localization : public BaseTask
 {
@@ -59,8 +61,8 @@ private:
   void pubInitPose(const geometry_msgs::msg::PoseStamped & init_pose);
 
   // callbacks
-  void localization_quality_sub_callback(const ModeChangeAvailable msg);
-  void localization_state_sub_callback(const LocalizationInitializationState msg);
+  void localizationQualityCallback(const ModeChangeAvailable & msg);
+  void localizationStateCallback(const LocalizationInitializationState & msg);
   // Publisher
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr init_pose_publisher_;
 
