@@ -12,8 +12,10 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 
-const double PLAN_WAIT_TIMEOUT_S = 10.0;
+const double ROUTE_PLANNING_TIMEOUT_S = 10.0;
+const int MAX_ROUTE_PLANNING_RETRIES = 5;
 
 enum class RoutePlanningTaskState {
   SET_GOAL,
@@ -32,22 +34,23 @@ public:
     override;                      // Executes SetGoal
   void request_cancel() override;  // Requests task cancellation
 
-  // Alias
+  // Alias for message types
   using OperationModeState = autoware_adapi_v1_msgs::msg::OperationModeState;
   using RouteState = autoware_adapi_v1_msgs::msg::RouteState;
   using PoseStamped = geometry_msgs::msg::PoseStamped;
 
 private:
   rclcpp::Node::SharedPtr node_;
-  std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;  // Use shared_ptr instead of reference
-  std::atomic<bool> cancel_requested_;
+  std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;
+  std::atomic<bool> is_cancel_requested_;
   std::atomic<bool> & is_task_running_;
-  RoutePlanningTaskState state_;
 
+  RoutePlanningTaskState state_;
   uint16_t route_state_;
   OperationModeState operation_mode_state_;
 
-  rclcpp::Time planning_start_time_;
+  rclcpp::Time route_planning_start_time_;
+  rclcpp::Time route_state_SET_start_time_;
   std::mutex task_mutex_;
 
   // Subscriber
@@ -58,8 +61,8 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_goal_pub_;
 
   // callback
-  void routeStateCallback(const RouteState msg);
-  void operationModeStateCallback(const OperationModeState msg);
+  void routeStateCallback(const RouteState & msg);
+  void operationModeStateCallback(const OperationModeState & msg);
 
   // Helper methods
   void publishTargetPose(const geometry_msgs::msg::PoseStamped & goal_pose);

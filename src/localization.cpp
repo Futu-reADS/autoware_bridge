@@ -1,7 +1,6 @@
 #include "autoware_bridge/localization.hpp"
 
 #include <chrono>
-#include <thread>
 
 using namespace std::chrono_literals;
 Localization::Localization(
