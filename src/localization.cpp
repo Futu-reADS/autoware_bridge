@@ -9,7 +9,7 @@ Localization::Localization(
   std::atomic<bool> & is_task_running)
 : node_(node),
   autoware_bridge_util_(std::move(autoware_bridge_util)),  // Move shared_ptr for efficiency
-  cancel_requested_(false),
+  is_cancel_requested_(false),
   is_task_running_(is_task_running),
   state_(LocalizationTaskState::UNINITIALIZED),
   localization_state_(LocalizationInitializationState::UNKNOWN),
@@ -42,7 +42,7 @@ void Localization::execute(
   while (true) {
     std::lock_guard<std::mutex> lock(task_mutex_);
 
-    if (cancel_requested_.load()) {
+    if (is_cancel_requested_.load()) {
       autoware_bridge_util_->updateCancellationStatus(task_id, "Cancelled by user");
       RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
       is_task_running_ = false;
@@ -119,7 +119,7 @@ void Localization::execute(
 void Localization::request_cancel()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
-  cancel_requested_ = true;
+  is_cancel_requested_ = true;
 }
 
 // make it a callback to update the status

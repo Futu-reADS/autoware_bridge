@@ -32,6 +32,7 @@ public:
     override;                      // Executes SetGoal
   void request_cancel() override;  // Requests task cancellation
 
+  // Alias
   using OperationModeState = autoware_adapi_v1_msgs::msg::OperationModeState;
   using RouteState = autoware_adapi_v1_msgs::msg::RouteState;
   using PoseStamped = geometry_msgs::msg::PoseStamped;
@@ -48,6 +49,7 @@ private:
 
   rclcpp::Time planning_start_time_;
   std::mutex task_mutex_;
+
   // Subscriber
   rclcpp::Subscription<RouteState>::SharedPtr route_state_sub_;
   rclcpp::Subscription<OperationModeState>::SharedPtr operation_mode_state_sub_;
@@ -59,7 +61,7 @@ private:
   void routeStateCallback(const RouteState msg);
   void operationModeStateCallback(const OperationModeState msg);
 
-  // Helper function
+  // Helper methods
   void publishTargetPose(const geometry_msgs::msg::PoseStamped & goal_pose);
 };
 
