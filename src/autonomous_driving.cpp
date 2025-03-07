@@ -41,6 +41,11 @@ void AutonomousDriving::execute(
   // Maximum number of drive retries
   int retry_counter = 0;
   bool success = false;
+  auto max_operation_mode_wait_time =
+    30.0;                                // Timeout for waiting for autonomous mode to be engaged
+  auto max_vehicle_stopped_time = 60.0;  // Timeout for vehicle being stopped for too long
+
+  rclcpp::Time operation_mode_wait_start_time = node_->get_clock()->now();
 
   while (true) {
     std::lock_guard<std::mutex> lock(task_mutex_);
@@ -66,13 +71,6 @@ void AutonomousDriving::execute(
       is_task_running_ = false;
       break;
     }
-    // we can try something like this to cover fail from any state--Not sure
-    /* if (node_->get_clock()->now().seconds() - driving_start_time_.seconds() >
-    DRIVE_WAIT_TIMEOUT_S) { RCLCPP_ERROR(node_->get_logger(), "Driving error, timeout expired");
-    autoware_bridge_util_->updateFailStatus(task_id, "Timeout expired");
-    is_task_running_ = false;
-    break;
-    }// Exit the loop */
 
     switch (state_) {
       case AutonomousDrivingTaskState::ENGAGE_AUTO_DRIVE:
@@ -91,7 +89,15 @@ void AutonomousDriving::execute(
         if (operation_mode_state_.mode == OperationModeState::AUTONOMOUS) {
           state_ = AutonomousDrivingTaskState::DRIVING;
         }
-        // Timer for 10 second and retry
+        // Timeout for waiting for autonomous mode
+        else if (
+          node_->get_clock()->now().seconds() - operation_mode_wait_start_time.seconds() >
+          max_operation_mode_wait_time) {
+          autoware_bridge_util_->updateFailStatus(task_id, "Timeout waiting for autonomous mode");
+          is_task_running_ = false;
+          break;
+        }
+        // Timer for 10 seconds and retry if the mode is not autonomous
         else if (
           node_->get_clock()->now().seconds() - driving_start_time_.seconds() >
           DRIVE_WAIT_TIMEOUT_S) {
@@ -102,22 +108,24 @@ void AutonomousDriving::execute(
 
       case AutonomousDrivingTaskState::DRIVING:
         if (vehicle_motion_state_ == MotionState::STOPPED) {
-          if (route_state_ == RouteState::ARRIVED) {
-            success = true;
-            retry_counter = 0;
-          } else {
-            // Check for halt condition (vehicle stopped for more than 60 seconds)
-            if (
-              halt_start_time_.seconds() > 0 &&
-              node_->get_clock()->now().seconds() - halt_start_time_.seconds() > 60) {
-              RCLCPP_WARN(node_->get_logger(), "HALT: 60 seconds elapsed while stopped.");
-              // Handle HALT logic: re-engage, retry, or reset
-              state_ = AutonomousDrivingTaskState::ENGAGE_AUTO_DRIVE;
-            }
+          // Check if the vehicle has been stopped for too long (timeout)
+          if (
+            halt_start_time_.seconds() > 0 &&
+            node_->get_clock()->now().seconds() - halt_start_time_.seconds() >
+              max_vehicle_stopped_time) {
+            RCLCPP_WARN(node_->get_logger(), "HALT: 60 seconds elapsed while stopped.");
+            // Handle HALT logic: re-engage, retry, or reset
+            state_ = AutonomousDrivingTaskState::ENGAGE_AUTO_DRIVE;
           }
         } else {
           // Vehicle is moving again, so start/reset the halt timer
           halt_start_time_ = node_->get_clock()->now();  // Start timer when driving starts
+        }
+
+        // If the route state is arrived, we are done
+        if (route_state_ == RouteState::ARRIVED) {
+          success = true;
+          retry_counter = 0;
         }
         break;
 
