@@ -41,7 +41,8 @@ void Localization::execute(
   while (true) {
     std::lock_guard<std::mutex> lock(task_mutex_);
 
-    if (is_cancel_requested_.load()) {
+    if (is_cancel_requested_) {
+      // CANCEL
       autoware_bridge_util_->updateCancellationStatus(task_id, "Cancelled by user");
       RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
       is_task_running_ = false;
@@ -115,7 +116,7 @@ void Localization::execute(
   }
   // std::this_thread::sleep_for(100ms);
 }
-void Localization::request_cancel()
+void Localization::cancelRequested()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
   is_cancel_requested_ = true;

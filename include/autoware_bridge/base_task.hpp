@@ -20,7 +20,7 @@ public:
   // virtual void execute(const std::string & task_id) = 0;
 
   // Pure virtual function to request cancellation.
-  virtual void request_cancel() = 0;
+  virtual void cancelRequested() = 0;
 };
 
 #endif  // BASE_TASK_HPP

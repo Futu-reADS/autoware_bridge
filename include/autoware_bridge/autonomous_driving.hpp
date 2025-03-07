@@ -13,10 +13,13 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 
 enum class AutonomousDrivingTaskState { ENGAGE_AUTO_DRIVE, WAIT_AUTO_DRIVE_READY, DRIVING };
 
 const double DRIVE_WAIT_TIMEOUT_S = 10.0;
+const int MAX_DRIVE_RETRIES = 5;
+
 class AutonomousDriving : public BaseTask
 {
 public:
@@ -24,9 +27,10 @@ public:
     rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
     std::atomic<bool> & is_task_running);
   void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
-    override;                      // Executes Driving
-  void request_cancel() override;  // Requests task cancellation
+    override;                       // Executes Driving
+  void cancelRequested() override;  // Requests task cancellation
 
+  // Alias for message types
   using RouteState = autoware_adapi_v1_msgs::msg::RouteState;
   using MotionState = autoware_adapi_v1_msgs::msg::MotionState;
   using OperationModeState = autoware_adapi_v1_msgs::msg::OperationModeState;
@@ -35,13 +39,15 @@ public:
 private:
   rclcpp::Node::SharedPtr node_;
   std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;  // Use shared_ptr instead of reference
-  std::atomic<bool> cancel_requested_;
+  std::atomic<bool> is_cancel_requested_;
   std::atomic<bool> & is_task_running_;
   AutonomousDrivingTaskState state_;
   OperationModeState operation_mode_state_;
   uint16_t vehicle_motion_state_;
   uint16_t route_state_;
+
   rclcpp::Time driving_start_time_;
+  rclcpp::Time halt_start_time_;
   std::mutex task_mutex_;
 
   // Subscriber
@@ -57,7 +63,7 @@ private:
   void routeStateCallback(const RouteState msg);
   void operationModeStateCallback(const OperationModeState msg);
 
-  // Helper functions
+  // Helper methods
   void engageAutoDrive();
 };
 

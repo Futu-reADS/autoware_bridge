@@ -157,7 +157,7 @@ void AutowareBridgeNode::cancelTaskCallback(const std_msgs::msg::String::SharedP
   if (autoware_bridge_util_->isTaskActive(requested_task_id)) {
     std::shared_ptr<BaseTask> active_task = autoware_bridge_util_->getActiveTaskPointer();
     if (active_task) {
-      active_task->request_cancel();
+      active_task->cancelRequested();
       publishCancelResponse(requested_task_id);
     } else {
       RCLCPP_ERROR(

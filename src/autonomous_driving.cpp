@@ -1,9 +1,6 @@
 #include "autoware_bridge/autonomous_driving.hpp"
 
 #include <chrono>
-#include <mutex>
-#include <stdexcept>
-#include <thread>
 
 using namespace std::chrono_literals;
 
@@ -12,10 +9,14 @@ AutonomousDriving::AutonomousDriving(
   std::atomic<bool> & is_task_running)
 : node_(node),
   autoware_bridge_util_(autoware_bridge_util),
-  cancel_requested_(false),
+  is_cancel_requested_(false),
   is_task_running_(is_task_running),
   state_(AutonomousDrivingTaskState::ENGAGE_AUTO_DRIVE),
-  vehicle_motion_state_(MotionState::UNKNOWN)
+  operation_mode_state_(),
+  vehicle_motion_state_(MotionState::UNKNOWN),
+  route_state_(RouteState::UNKNOWN),
+  driving_start_time_(rclcpp::Time(0)),
+  halt_start_time_(rclcpp::Time(0))
 {
   // Initialize autonomous client
   auto_drive_engage_client = node_->create_client<autoware_adapi_v1_msgs::srv::ChangeOperationMode>(
@@ -34,44 +35,44 @@ AutonomousDriving::AutonomousDriving(
 void AutonomousDriving::execute(
   const std::string & task_id, const geometry_msgs::msg::PoseStamped & /*pose*/)
 {
-  autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "RUNNING");
-  autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::TOTAL_RETRIES, "", 5);
+  autoware_bridge_util_->updateRunningStatus(task_id, 5);
   is_task_running_ = true;
 
-  // Maximum number of initialization retries
-  const int MAX_INIT_RETRIES = 5;
+  // Maximum number of drive retries
   int retry_counter = 0;
   bool success = false;
 
   while (true) {
     std::lock_guard<std::mutex> lock(task_mutex_);
 
-    if (cancel_requested_.load()) {
-      autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "CANCELLED");
-      autoware_bridge_util_->updateTaskStatus(
-        task_id, TaskRequestType::REASON, "Cancelled by user");
+    if (is_cancel_requested_) {
+      // CANCEL
+      autoware_bridge_util_->updateCancellationStatus(task_id, "Cancelled by user");
       RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
       is_task_running_ = false;
       return;
     }
 
-    if (retry_counter >= MAX_INIT_RETRIES) {
+    if (retry_counter >= MAX_DRIVE_RETRIES) {
       // FAILURE
-
-      // updateFailStatus(task_id, "Max retries elapsed");------>Implement it
-      autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "FAILED");
-      autoware_bridge_util_->updateTaskStatus(
-        task_id, TaskRequestType::REASON, "Max retries elapsed");
+      autoware_bridge_util_->updateFailStatus(task_id, "Max retries elapsed");
       is_task_running_ = false;
       break;
     }
 
     if (success) {
       // SUCCESS
-      autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
+      autoware_bridge_util_->updateSuccessStatus(task_id);
       is_task_running_ = false;
       break;
     }
+    // we can try something like this to cover fail from any state--Not sure
+    /* if (node_->get_clock()->now().seconds() - driving_start_time_.seconds() >
+    DRIVE_WAIT_TIMEOUT_S) { RCLCPP_ERROR(node_->get_logger(), "Driving error, timeout expired");
+    autoware_bridge_util_->updateFailStatus(task_id, "Timeout expired");
+    is_task_running_ = false;
+    break;
+    }// Exit the loop */
 
     switch (state_) {
       case AutonomousDrivingTaskState::ENGAGE_AUTO_DRIVE:
@@ -88,7 +89,6 @@ void AutonomousDriving::execute(
 
       case AutonomousDrivingTaskState::WAIT_AUTO_DRIVE_READY:
         if (operation_mode_state_.mode == OperationModeState::AUTONOMOUS) {
-          // this->driving_stop_time_ = this->get_clock()->now();
           state_ = AutonomousDrivingTaskState::DRIVING;
         }
         // Timer for 10 second and retry
@@ -104,27 +104,33 @@ void AutonomousDriving::execute(
         if (vehicle_motion_state_ == MotionState::STOPPED) {
           if (route_state_ == RouteState::ARRIVED) {
             success = true;
+            retry_counter = 0;
           } else {
-            // check timer elapse Response : "HALT", 60sec
+            // Check for halt condition (vehicle stopped for more than 60 seconds)
+            if (
+              halt_start_time_.seconds() > 0 &&
+              node_->get_clock()->now().seconds() - halt_start_time_.seconds() > 60) {
+              RCLCPP_WARN(node_->get_logger(), "HALT: 60 seconds elapsed while stopped.");
+              // Handle HALT logic: re-engage, retry, or reset
+              state_ = AutonomousDrivingTaskState::ENGAGE_AUTO_DRIVE;
+            }
           }
         } else {
-          // driving_stop_time_ = node_->get_clock()->now();
+          // Vehicle is moving again, so start/reset the halt timer
+          halt_start_time_ = node_->get_clock()->now();  // Start timer when driving starts
         }
         break;
+
       default:
         break;
     }
-    // DRIVING -> HALT
-    // 2nd attempt
-    // UI -> CANCEL
-    // UI -> RUN ROUTE PLANNING
   }
 }
 
-void AutonomousDriving::request_cancel()
+void AutonomousDriving::cancelRequested()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
-  cancel_requested_ = true;
+  is_cancel_requested_ = true;
 }
 
 void AutonomousDriving::engageAutoDrive()
@@ -141,10 +147,10 @@ void AutonomousDriving::engageAutoDrive()
     }
     RCLCPP_INFO(node_->get_logger(), "auto_drive_engage service not available, waiting again...");
   }
-  // auto request = std::make_shared<autoware_adapi_v1_msgs::srv::ChangeOperationMode::Request>();
   auto request = std::make_shared<ChangeOperationMode::Request>();
-
   auto future_result = auto_drive_engage_client->async_send_request(request);
+
+  // It's good practice to add a maximum retry limit in case the service is not available.
 }
 
 void AutonomousDriving::operationModeStateCallback(const OperationModeState msg)

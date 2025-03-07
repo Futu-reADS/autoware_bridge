@@ -29,7 +29,7 @@ void RoutePlanning::execute(
   autoware_bridge_util_->updateRunningStatus(task_id, 5);
   is_task_running_ = true;
 
-  // Maximum number of initialization retries
+  // Maximum number of route planning retries
   int retry_counter = 0;
   bool success = false;
 
@@ -37,6 +37,7 @@ void RoutePlanning::execute(
     std::lock_guard<std::mutex> lock(task_mutex_);
 
     if (is_cancel_requested_) {
+      // CANCEL
       autoware_bridge_util_->updateCancellationStatus(task_id, "Cancelled by user");
       RCLCPP_INFO(node_->get_logger(), "Route planning task %s cancelled.", task_id.c_str());
       is_task_running_ = false;
@@ -44,12 +45,14 @@ void RoutePlanning::execute(
     }
 
     if (retry_counter >= MAX_ROUTE_PLANNING_RETRIES) {
+      // FAILURE
       autoware_bridge_util_->updateFailStatus(task_id, "Max retries elapsed");
       is_task_running_ = false;
       break;
     }
 
     if (success) {
+      // SUCCESS
       autoware_bridge_util_->updateSuccessStatus(task_id);
       is_task_running_ = false;
       break;
@@ -134,7 +137,7 @@ void RoutePlanning::execute(
   }
 }
 
-void RoutePlanning::request_cancel()
+void RoutePlanning::cancelRequested()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
   is_cancel_requested_ = true;

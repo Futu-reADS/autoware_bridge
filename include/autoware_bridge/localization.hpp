@@ -32,8 +32,8 @@ public:
     std::atomic<bool> & is_task_running);
 
   void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & init_pose)
-    override;                      // Executes localization
-  void request_cancel() override;  // Requests task cancellation
+    override;                       // Executes localization
+  void cancelRequested() override;  // Requests task cancellation
 
   // Alias
   using LocalizationInitializationState =

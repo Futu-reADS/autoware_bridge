@@ -31,8 +31,8 @@ public:
     std::atomic<bool> & is_task_running);
 
   void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
-    override;                      // Executes SetGoal
-  void request_cancel() override;  // Requests task cancellation
+    override;                       // Executes SetGoal
+  void cancelRequested() override;  // Requests task cancellation
 
   // Alias for message types
   using OperationModeState = autoware_adapi_v1_msgs::msg::OperationModeState;
