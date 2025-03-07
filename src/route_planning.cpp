@@ -58,6 +58,22 @@ void RoutePlanning::execute(
       break;
     }
 
+    /*https://autowarefoundation.github.io/autoware-documentation/main/design/autoware-interfaces/ad-api/features/routing/
+    UNSET (the route is not set; effectively “waiting” for a route request)
+    SET (the route is set)
+    CHANGING (trying to change the route)
+    ARRIVED (the vehicle has arrived at the destination)
+
+    Matching the Diagram to the Table
+    The diagram’s “WAITING” is effectively the table’s “UNSET” state.
+    After the route is set, you go from UNSET → SET.
+    Then if you change the route, you go from SET → CHANGING.
+    Finally, once you arrive or finish changing successfully, you can go to ARRIVED (or back to SET
+    if you are reusing the route).
+
+    Basically “WAITING” = “UNSET”
+
+    */
     switch (state_) {
       case RoutePlanningTaskState::SET_GOAL:
 
