@@ -35,17 +35,13 @@ AutonomousDriving::AutonomousDriving(
 void AutonomousDriving::execute(
   const std::string & task_id, const geometry_msgs::msg::PoseStamped & /*pose*/)
 {
-  autoware_bridge_util_->updateRunningStatus(task_id, 5);
+  autoware_bridge_util_->updateRunningStatusWithRetries(task_id, MAX_DRIVE_RETRIES);
   is_task_running_ = true;
 
   // Maximum number of drive retries
   int retry_counter = 0;
   bool success = false;
-  auto max_operation_mode_wait_time =
-    30.0;                                // Timeout for waiting for autonomous mode to be engaged
-  auto max_vehicle_stopped_time = 60.0;  // Timeout for vehicle being stopped for too long
-
-  rclcpp::Time operation_mode_wait_start_time = node_->get_clock()->now();
+  
 
   while (true) {
     std::lock_guard<std::mutex> lock(task_mutex_);
@@ -89,14 +85,6 @@ void AutonomousDriving::execute(
         if (operation_mode_state_.mode == OperationModeState::AUTONOMOUS) {
           state_ = AutonomousDrivingTaskState::DRIVING;
         }
-        // Timeout for waiting for autonomous mode
-        else if (
-          node_->get_clock()->now().seconds() - operation_mode_wait_start_time.seconds() >
-          max_operation_mode_wait_time) {
-          autoware_bridge_util_->updateFailStatus(task_id, "Timeout waiting for autonomous mode");
-          is_task_running_ = false;
-          break;
-        }
         // Timer for 10 seconds and retry if the mode is not autonomous
         else if (
           node_->get_clock()->now().seconds() - driving_start_time_.seconds() >
@@ -112,9 +100,10 @@ void AutonomousDriving::execute(
           if (
             halt_start_time_.seconds() > 0 &&
             node_->get_clock()->now().seconds() - halt_start_time_.seconds() >
-              max_vehicle_stopped_time) {
+            MAX_EGO_HALT_TIME) {
             RCLCPP_WARN(node_->get_logger(), "HALT: 60 seconds elapsed while stopped.");
             // Handle HALT logic: re-engage, retry, or reset
+            autoware_bridge_util_->updateHaltStatus(task_id, "HALT: 60 seconds elapsed while stopped");
             state_ = AutonomousDrivingTaskState::ENGAGE_AUTO_DRIVE;
           }
         } else {

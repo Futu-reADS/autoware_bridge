@@ -19,6 +19,7 @@ enum class AutonomousDrivingTaskState { ENGAGE_AUTO_DRIVE, WAIT_AUTO_DRIVE_READY
 
 const double DRIVE_WAIT_TIMEOUT_S = 10.0;
 const int MAX_DRIVE_RETRIES = 5;
+const double MAX_EGO_HALT_TIME = 60.0;  // Timeout for vehicle being stopped/halted for too long
 
 class AutonomousDriving : public BaseTask
 {

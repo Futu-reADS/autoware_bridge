@@ -43,7 +43,8 @@ public:
   void updateFailStatus(const std::string & task_id, const std::string & reason);
   void updateSuccessStatus(const std::string & task_id);
   void updateCancellationStatus(const std::string & task_id, const std::string & reason);
-  void updateRunningStatus(const std::string & task_id, const int total_retries);
+  void updateRunningStatusWithRetries(const std::string & task_id, const int total_retries);
+  void updateHaltStatus(const std::string & task_id, const std::string & reason);
 
   bool isTaskActive(const std::string & task_id);
   std::string getActiveTaskId();

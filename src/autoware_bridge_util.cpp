@@ -67,13 +67,20 @@ void AutowareBridgeUtil::updateCancellationStatus(
   updateTaskStatus(task_id, TaskRequestType::REASON, reason);
 }
 
-void AutowareBridgeUtil::updateRunningStatus(const std::string & task_id, const int total_retries)
+void AutowareBridgeUtil::updateRunningStatusWithRetries(const std::string & task_id, const int total_retries)
 {
   // Update task status to RUNNING
   updateTaskStatus(task_id, TaskRequestType::STATUS, "RUNNING");
   // Update total retries
   updateTaskStatus(task_id, TaskRequestType::TOTAL_RETRIES, "", total_retries);
 }
+
+void AutowareBridgeUtil::updateHaltStatus(const std::string & task_id, const std::string & reason)
+{
+  updateTaskStatus(task_id, TaskRequestType::STATUS, "HALTED");
+  updateTaskStatus(task_id, TaskRequestType::REASON, reason);
+}
+
 bool AutowareBridgeUtil::isTaskActive(const std::string & task_id)
 {
   std::lock_guard<std::mutex> lock(task_mutex_);

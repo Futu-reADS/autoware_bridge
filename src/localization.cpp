@@ -31,7 +31,7 @@ Localization::Localization(
 void Localization::execute(
   const std::string & task_id, const geometry_msgs::msg::PoseStamped & init_pose)
 {
-  autoware_bridge_util_->updateRunningStatus(task_id, 5);
+  autoware_bridge_util_->updateRunningStatusWithRetries(task_id, MAX_INIT_RETRIES);
   is_task_running_ = true;
 
   // Maximum number of initialization retries

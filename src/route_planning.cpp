@@ -26,7 +26,7 @@ RoutePlanning::RoutePlanning(
 void RoutePlanning::execute(
   const std::string & task_id, const geometry_msgs::msg::PoseStamped & goal_pose)
 {
-  autoware_bridge_util_->updateRunningStatus(task_id, 5);
+  autoware_bridge_util_->updateRunningStatusWithRetries(task_id, MAX_ROUTE_PLANNING_RETRIES);
   is_task_running_ = true;
 
   // Maximum number of route planning retries
@@ -100,16 +100,12 @@ void RoutePlanning::execute(
 
         switch (route_state_) {
           case RouteState::UNKNOWN:
-            // Check the case and Consider adding a timeout and handling this scenario to prevent
-            // potential infinite loops
             RCLCPP_ERROR_THROTTLE(
               node_->get_logger(), *node_->get_clock(), 1000,
               "Planning error, Autoware in Unknown State");
             break;
 
           case RouteState::UNSET:
-            // Consider adding a timeout and handling this scenario to prevent potential infinite
-            // loops
             break;
 
           case RouteState::SET:
@@ -118,16 +114,11 @@ void RoutePlanning::execute(
             break;
 
           case RouteState::ARRIVED:
-            autoware_bridge_util_->updateTaskStatus(task_id, TaskRequestType::STATUS, "FAILED");
-            autoware_bridge_util_->updateTaskStatus(
-              task_id, TaskRequestType::REASON, "Autoware in ARRIVED State");
+            autoware_bridge_util_->updateFailStatus(task_id, "Autoware in ARRIVED State");
             RCLCPP_WARN(node_->get_logger(), "Autoware in ARRIVED State");
             break;
 
           case RouteState::CHANGING:
-            // Check the case
-            // Consider adding a timeout and handling this scenario to prevent potential infinite
-            // loops
             RCLCPP_ERROR(node_->get_logger(), "Autoware in CHANGING State");
             break;
         }
