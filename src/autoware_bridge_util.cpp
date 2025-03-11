@@ -148,7 +148,7 @@ void AutowareBridgeUtil::handleStatusRequest(
   if (isTaskActive(request->task_id)) {
     std::lock_guard<std::mutex> lock(task_mutex_);
     TaskInfo task_info =
-      getTaskStatus(request->task_id);  // PENDING, RUNNING, RETRYING, SUCCESS, FAILED, CANCELLED
+      getTaskStatus(request->task_id);  // PENDING, RUNNING, RETRYING, SUCCESS, FAILED, CANCELLED , HALTED
     response->status = task_info.status;
     response->retry_number = task_info.retry_number;
     response->total_retries = task_info.total_retries;

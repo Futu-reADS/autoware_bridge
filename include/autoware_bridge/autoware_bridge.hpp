@@ -12,6 +12,7 @@
 #include "autoware_bridge_msgs/msg/task_status_response.hpp"
 #include "ftd_master_msgs/msg/pose_stamped_with_task_id.hpp"
 #include <std_msgs/msg/string.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 #include <atomic>
 #include <memory>
@@ -43,6 +44,7 @@ private:
     task_response_publisher_;
   rclcpp::Publisher<autoware_bridge_msgs::msg::TaskStatusResponse>::SharedPtr
     cancel_response_publisher_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr reinitialize_response_publisher_;
 
   // ROS2 Services
   rclcpp::Service<autoware_bridge::srv::GetTaskStatus>::SharedPtr status_service_;
@@ -53,13 +55,15 @@ private:
   std::shared_ptr<RoutePlanning> route_planning_task_;
   std::shared_ptr<AutonomousDriving> autonomous_driving_task_;
 
-  // Private Methods
+  // Callback Methods
   void localizationRequestCallback(
     const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);
   void routePlanningRequestCallback(
     const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);
   void autonomousDrivingRequestCallback(const std_msgs::msg::String::SharedPtr msg);
   void cancelTaskCallback(const std_msgs::msg::String::SharedPtr msg);
+  void onTimerCallback();
+  void publish_relocalization_notification(const bool localization_quality);
 
   // Helper functions
   bool isTaskRejected(const std::string & task_name);
@@ -82,6 +86,8 @@ private:
 
   // Single active task tracking flag
   std::atomic<bool> is_task_running_;
+
+  rclcpp::TimerBase::SharedPtr timer_;
 };
 
 #endif  // AUTOWARE_BRIDGE_HPP

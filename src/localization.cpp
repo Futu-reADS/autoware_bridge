@@ -13,7 +13,7 @@ Localization::Localization(
   state_(LocalizationTaskState::UNINITIALIZED),
   localization_state_(LocalizationInitializationState::UNKNOWN),
   localization_quality_(false),
-  localization_start_time_(rclcpp::Time(0))
+  localization_start_time_(rclcpp::Time(0)) 
 {
   init_pose_publisher_ =
     node_->create_publisher<geometry_msgs::msg::PoseStamped>("/initialpose", 10);
@@ -142,4 +142,8 @@ void Localization::localizationStateCallback(const LocalizationInitializationSta
 void Localization::pubInitPose(const geometry_msgs::msg::PoseStamped & init_pose)
 {
   init_pose_publisher_->publish(init_pose);
+}
+
+bool Localization::getLocalizationQuality() const { 
+  return localization_quality_; 
 }

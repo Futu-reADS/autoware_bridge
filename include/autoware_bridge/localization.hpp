@@ -34,6 +34,7 @@ public:
   void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & init_pose)
     override;                       // Executes localization
   void cancelRequested() override;  // Requests task cancellation
+  bool getLocalizationQuality() const; // this getter is used in autoware_bridge.cpp
 
   // Alias
   using LocalizationInitializationState =

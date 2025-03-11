@@ -2,6 +2,9 @@
 
 #include <functional>
 #include <thread>
+#include <chrono>
+
+using namespace std::chrono_literals;
 
 AutowareBridgeNode::AutowareBridgeNode(
   std::shared_ptr<AutowareBridgeUtil> util, std::shared_ptr<Localization> localization_task,
@@ -46,6 +49,13 @@ AutowareBridgeNode::AutowareBridgeNode(
     "check_task_status", std::bind(
                            &AutowareBridgeNode::handleStatusRequest, this, std::placeholders::_1,
                            std::placeholders::_2));
+
+  // Create a timer to check localization quality periodically.
+  timer_ = this->create_wall_timer(100ms,std::bind(&AutowareBridgeNode::onTimerCallback, this));
+
+  reinitialize_response_publisher_ = this->create_publisher<std_msgs::msg::Bool>("/autoware_bridge/reinitialize", 10);
+
+  RCLCPP_INFO(this->get_logger(), "Autoware Bridge Node has been initialized.");
 }
 
 AutowareBridgeNode::~AutowareBridgeNode()
@@ -207,6 +217,25 @@ void AutowareBridgeNode::handleStatusRequest(
   std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Response> response)
 {
   autoware_bridge_util_->handleStatusRequest(request, response);
+}
+
+void AutowareBridgeNode::onTimerCallback()
+{
+  std::string active_task_id = autoware_bridge_util_->getActiveTaskId();
+  TaskInfo task_status = autoware_bridge_util_->getTaskStatus(active_task_id);
+
+  if ( (((active_task_id.find("localization") == 0) && (task_status.status == "SUCCESS"))) ||
+       ((active_task_id.find("route_planning") == 0)) ||
+       ((active_task_id.find("autonomous_driving") == 0)) )
+  {
+    if (!localization_task_->getLocalizationQuality()) {
+      //trigger reinitialization to UI.
+      std_msgs::msg::Bool reinit_msg;
+      reinit_msg.data = true;
+      reinitialize_response_publisher_->publish(reinit_msg);
+      RCLCPP_WARN(get_logger(), "Localization quality is poor,UI should request for reinitialization"); 
+    }
+  }
 }
 
 int main(int argc, char * argv[])
