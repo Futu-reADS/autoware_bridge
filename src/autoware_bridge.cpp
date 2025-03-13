@@ -19,23 +19,29 @@ AutowareBridgeNode::AutowareBridgeNode(
   autonomous_driving_task_(autonomous_driving_task),
   is_task_running_(is_task_running)
 {
+  this->declare_parameter("localization_topic", "/ftd_master/localization_request");
+  this->declare_parameter("route_planning_topic", "/ftd_master/route_planning_request");
+  this->declare_parameter("autonomous_driving_topic", "/ftd_master/autonomous_driving_request");
+  this->declare_parameter("cancel_task_topic", "/ftd_master/cancel_task");
+
+  std::string localization_topic = this->get_parameter("localization_topic").as_string();
+  std::string route_planning_topic = this->get_parameter("route_planning_topic").as_string();
+  std::string autonomous_driving_topic = this->get_parameter("autonomous_driving_topic").as_string();
+  std::string cancel_task_topic = this->get_parameter("cancel_task_topic").as_string();
+
   // ROS2 Subscriptions
   localization_request_subscription_ =
-    this->create_subscription<ftd_master_msgs::msg::PoseStampedWithTaskId>(
-      "/ftd_master/localization_request", 10,
-      std::bind(&AutowareBridgeNode::localizationRequestCallback, this, std::placeholders::_1));
+    this->create_subscription<ftd_master_msgs::msg::PoseStampedWithTaskId>(localization_topic, 10,std::bind(&AutowareBridgeNode::localizationRequestCallback, this, std::placeholders::_1));
 
   route_planning_request_subscription_ =
-    this->create_subscription<ftd_master_msgs::msg::PoseStampedWithTaskId>(
-      "/ftd_master/route_planning_request", 10,
-      std::bind(&AutowareBridgeNode::routePlanningRequestCallback, this, std::placeholders::_1));
+    this->create_subscription<ftd_master_msgs::msg::PoseStampedWithTaskId>(route_planning_topic, 10,std::bind(&AutowareBridgeNode::routePlanningRequestCallback, this, std::placeholders::_1));
 
-  autonomous_driving_request_subscription_ = this->create_subscription<std_msgs::msg::String>(
-    "/ftd_master/autonomous_driving_request", 10,
+  autonomous_driving_request_subscription_ = 
+    this->create_subscription<std_msgs::msg::String>(autonomous_driving_topic, 10,
     std::bind(&AutowareBridgeNode::autonomousDrivingRequestCallback, this, std::placeholders::_1));
 
-  cancel_task_subscription_ = this->create_subscription<std_msgs::msg::String>(
-    "/ftd_master/cancel_task", 10,
+  cancel_task_subscription_ = 
+    this->create_subscription<std_msgs::msg::String>(cancel_task_topic, 10,
     std::bind(&AutowareBridgeNode::cancelTaskCallback, this, std::placeholders::_1));
 
   // ROS2 Publishers

@@ -7,7 +7,7 @@ Localization::Localization(
   rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
   std::atomic<bool> & is_task_running)
 : node_(node),
-  autoware_bridge_util_(std::move(autoware_bridge_util)),  // Move shared_ptr for efficiency
+  autoware_bridge_util_(autoware_bridge_util),
   is_cancel_requested_(false),
   is_task_running_(is_task_running), // Initialize reference
   state_(LocalizationTaskState::UNINITIALIZED),
@@ -15,6 +15,7 @@ Localization::Localization(
   localization_quality_(false),
   localization_start_time_(rclcpp::Time(0)) 
 {
+  
   init_pose_publisher_ =
     node_->create_publisher<geometry_msgs::msg::PoseStamped>("/initialpose", 10);
 
