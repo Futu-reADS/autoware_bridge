@@ -9,7 +9,7 @@ Localization::Localization(
 : node_(node),
   autoware_bridge_util_(std::move(autoware_bridge_util)),  // Move shared_ptr for efficiency
   is_cancel_requested_(false),
-  is_task_running_(is_task_running),
+  is_task_running_(is_task_running), // Initialize reference
   state_(LocalizationTaskState::UNINITIALIZED),
   localization_state_(LocalizationInitializationState::UNKNOWN),
   localization_quality_(false),

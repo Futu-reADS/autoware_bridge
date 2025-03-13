@@ -28,27 +28,25 @@ class Localization : public BaseTask
 {
 public:
   Localization(
-    rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
+    rclcpp::Node::SharedPtr node, 
+    std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
     std::atomic<bool> & is_task_running);
 
-  void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & init_pose)
-    override;                       // Executes localization
+  void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & init_pose)override;                       // Executes localization
   void cancelRequested() override;  // Requests task cancellation
   bool getLocalizationQuality() const; // this getter is used in autoware_bridge.cpp
 
   // Alias
   using LocalizationInitializationState =
     autoware_adapi_v1_msgs::msg::LocalizationInitializationState;
-
   using ModeChangeAvailable = tier4_system_msgs::msg::ModeChangeAvailable;
-  // geometry_msgs
   using PoseStamped = geometry_msgs::msg::PoseStamped;
 
 private:
   rclcpp::Node::SharedPtr node_;
   std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;
   std::atomic<bool> is_cancel_requested_;
-  std::atomic<bool> & is_task_running_;
+  std::atomic<bool> & is_task_running_; // Reference to shared flag
 
   LocalizationTaskState state_;
   uint16_t localization_state_;

@@ -7,15 +7,17 @@
 using namespace std::chrono_literals;
 
 AutowareBridgeNode::AutowareBridgeNode(
-  std::shared_ptr<AutowareBridgeUtil> util, std::shared_ptr<Localization> localization_task,
+  std::shared_ptr<AutowareBridgeUtil> util, 
+  std::shared_ptr<Localization> localization_task,
   std::shared_ptr<RoutePlanning> route_planning_task,
-  std::shared_ptr<AutonomousDriving> autonomous_driving_task)
+  std::shared_ptr<AutonomousDriving> autonomous_driving_task,
+  std::atomic<bool>& is_task_running)
 : Node("autoware_bridge_node"),
   autoware_bridge_util_(util),
   localization_task_(localization_task),
   route_planning_task_(route_planning_task),
   autonomous_driving_task_(autonomous_driving_task),
-  is_task_running_(false)
+  is_task_running_(is_task_running)
 {
   // ROS2 Subscriptions
   localization_request_subscription_ =
@@ -245,7 +247,7 @@ int main(int argc, char * argv[])
   // Create node and utility instance
   auto node = std::make_shared<rclcpp::Node>("autoware_bridge_node");
   auto autoware_bridge_util = std::make_shared<AutowareBridgeUtil>();
-  std::atomic<bool> is_task_running(false);
+  std::atomic<bool> is_task_running(false); //Create shared flag
 
   // Create task instances with correct arguments
   auto localization_task =
@@ -257,7 +259,7 @@ int main(int argc, char * argv[])
 
   // Create AutowareBridgeNode
   auto bridge_node = std::make_shared<AutowareBridgeNode>(
-    autoware_bridge_util, localization_task, route_planning_task, autonomous_driving_task);
+    autoware_bridge_util, localization_task, route_planning_task, autonomous_driving_task,is_task_running);
 
   rclcpp::spin(bridge_node);
   rclcpp::shutdown();

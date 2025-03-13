@@ -18,15 +18,15 @@
 #include <memory>
 #include <thread>
 
-// Include the custom message header
-
 class AutowareBridgeNode : public rclcpp::Node
 {
 public:
   AutowareBridgeNode(
-    std::shared_ptr<AutowareBridgeUtil> util, std::shared_ptr<Localization> localization_task,
+    std::shared_ptr<AutowareBridgeUtil> util, 
+    std::shared_ptr<Localization> localization_task,
     std::shared_ptr<RoutePlanning> route_planning_task,
-    std::shared_ptr<AutonomousDriving> autonomous_driving_task);
+    std::shared_ptr<AutonomousDriving> autonomous_driving_task,
+    std::atomic<bool>& is_task_running);
 
   ~AutowareBridgeNode();
 
@@ -54,12 +54,11 @@ private:
   std::shared_ptr<Localization> localization_task_;
   std::shared_ptr<RoutePlanning> route_planning_task_;
   std::shared_ptr<AutonomousDriving> autonomous_driving_task_;
+  std::atomic<bool>& is_task_running_;  // Shared atomic flag
 
   // Callback Methods
-  void localizationRequestCallback(
-    const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);
-  void routePlanningRequestCallback(
-    const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);
+  void localizationRequestCallback(const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);
+  void routePlanningRequestCallback(const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);
   void autonomousDrivingRequestCallback(const std_msgs::msg::String::SharedPtr msg);
   void cancelTaskCallback(const std_msgs::msg::String::SharedPtr msg);
   void onTimerCallback();
@@ -83,9 +82,6 @@ private:
   void handleStatusRequest(
     const std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Request> request,
     std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Response> response);
-
-  // Single active task tracking flag
-  std::atomic<bool> is_task_running_;
 
   rclcpp::TimerBase::SharedPtr timer_;
 };
