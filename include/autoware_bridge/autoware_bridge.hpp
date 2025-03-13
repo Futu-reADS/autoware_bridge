@@ -16,7 +16,6 @@
 
 #include <atomic>
 #include <memory>
-#include <thread>
 
 class AutowareBridgeNode : public rclcpp::Node , public std::enable_shared_from_this<AutowareBridgeNode>
 {
@@ -44,12 +43,10 @@ private:
   // ROS2 Services
   rclcpp::Service<autoware_bridge::srv::GetTaskStatus>::SharedPtr status_service_;
 
-  // Shared Utility instances and task instances
+  // Shared Utility instance
   std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;
-  // std::shared_ptr<Localization> localization_task_;
-  // std::shared_ptr<RoutePlanning> route_planning_task_;
-  // std::shared_ptr<AutonomousDriving> autonomous_driving_task_;
-  std::atomic<bool> is_task_running_; // Shared atomic flag
+
+  std::atomic<bool>is_task_running_; 
 
   // Callback Methods
   void localizationRequestCallback(const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);

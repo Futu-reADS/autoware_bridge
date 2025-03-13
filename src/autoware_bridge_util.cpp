@@ -1,9 +1,8 @@
 #include "autoware_bridge/autoware_bridge_util.hpp"
-
 #include "rclcpp/rclcpp.hpp"
 
 #include <map>
-#include <memory>  // For shared_ptr
+#include <memory>
 #include <mutex>
 
 void AutowareBridgeUtil::updateTaskStatus(

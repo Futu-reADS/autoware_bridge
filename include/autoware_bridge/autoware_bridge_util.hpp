@@ -5,11 +5,10 @@
 #include "rclcpp/rclcpp.hpp"
 
 #include <map>
-#include <memory>  // For std::shared_ptr
+#include <memory> 
 #include <mutex>
 #include <string>
-// Include the service headers for GetTaskStatus and CancelTask
-// #include "autoware_bridge/srv/cancel_task.hpp"
+
 #include "autoware_bridge/srv/get_task_status.hpp"
 
 #define EMPTY_STRING ""
@@ -36,7 +35,6 @@ class AutowareBridgeUtil
 {
 public:
   AutowareBridgeUtil() : active_task_(nullptr) {}
-
   void updateTaskStatus(
     const std::string & task_id, TaskRequestType request_type, const std::string & value,
     int number = 0);

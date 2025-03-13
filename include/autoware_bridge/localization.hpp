@@ -61,6 +61,7 @@ private:
   // callbacks
   void localizationQualityCallback(const ModeChangeAvailable & msg);
   void localizationStateCallback(const LocalizationInitializationState & msg);
+  
   // Publisher
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr init_pose_publisher_;
 

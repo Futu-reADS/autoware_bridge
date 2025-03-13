@@ -27,7 +27,8 @@ class RoutePlanning : public BaseTask
 {
 public:
   RoutePlanning(
-    rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
+    rclcpp::Node::SharedPtr node, 
+    std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
     std::atomic<bool> & is_task_running);
 
   void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)

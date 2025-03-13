@@ -3,9 +3,7 @@
 
 #include "autoware_bridge/autoware_bridge_util.hpp"
 #include "base_task.hpp"
-
 #include <rclcpp/rclcpp.hpp>
-
 #include <autoware_adapi_v1_msgs/msg/motion_state.hpp>
 #include <autoware_adapi_v1_msgs/msg/operation_mode_state.hpp>
 #include <autoware_adapi_v1_msgs/msg/route_state.hpp>
@@ -15,17 +13,22 @@
 #include <memory>
 #include <mutex>
 
-enum class AutonomousDrivingTaskState { ENGAGE_AUTO_DRIVE, WAIT_AUTO_DRIVE_READY, DRIVING };
+enum class AutonomousDrivingTaskState { 
+  ENGAGE_AUTO_DRIVE, 
+  WAIT_AUTO_DRIVE_READY, 
+  DRIVING 
+};
 
 const double DRIVE_WAIT_TIMEOUT_S = 10.0;
 const int MAX_DRIVE_RETRIES = 5;
-const double MAX_EGO_HALT_TIME = 60.0;  // Timeout for vehicle being stopped/halted for too long
+const double MAX_EGO_HALT_TIME = 60.0;  // Halting time in seconds
 
 class AutonomousDriving : public BaseTask
 {
 public:
   AutonomousDriving(
-    rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
+    rclcpp::Node::SharedPtr node, 
+    std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
     std::atomic<bool> & is_task_running);
   void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
     override;                       // Executes Driving
@@ -39,7 +42,7 @@ public:
 
 private:
   rclcpp::Node::SharedPtr node_;
-  std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;  // Use shared_ptr instead of reference
+  std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;  
   std::atomic<bool> is_cancel_requested_;
   std::atomic<bool> & is_task_running_;
   AutonomousDrivingTaskState state_;

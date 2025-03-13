@@ -1,7 +1,8 @@
 #include "autoware_bridge/route_planning.hpp"
 
 RoutePlanning::RoutePlanning(
-  rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
+  rclcpp::Node::SharedPtr node, 
+  std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
   std::atomic<bool> & is_task_running)
 : node_(node),
   autoware_bridge_util_(autoware_bridge_util),

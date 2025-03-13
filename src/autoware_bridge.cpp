@@ -8,15 +8,8 @@ using namespace std::chrono_literals;
 
 AutowareBridgeNode::AutowareBridgeNode(
   std::shared_ptr<AutowareBridgeUtil> util)
-  // std::shared_ptr<Localization> localization_task,
-  // std::shared_ptr<RoutePlanning> route_planning_task,
-  // std::shared_ptr<AutonomousDriving> autonomous_driving_task,
-  //std::atomic<bool>& is_task_running)
 : Node("autoware_bridge_node"),
   autoware_bridge_util_(util),
-  // localization_task_(localization_task),
-  // route_planning_task_(route_planning_task),
-  // autonomous_driving_task_(autonomous_driving_task),
   is_task_running_(false)
 {
   this->declare_parameter("localization_topic", "/ftd_master/localization_request");
@@ -72,7 +65,6 @@ AutowareBridgeNode::~AutowareBridgeNode()
 }
 
 // Task Handling Callbacks
-
 void AutowareBridgeNode::localizationRequestCallback(
   const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg)
 {
