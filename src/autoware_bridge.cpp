@@ -7,11 +7,11 @@
 using namespace std::chrono_literals;
 
 AutowareBridgeNode::AutowareBridgeNode(
-  std::shared_ptr<AutowareBridgeUtil> util, 
+  std::shared_ptr<AutowareBridgeUtil> util)
   // std::shared_ptr<Localization> localization_task,
   // std::shared_ptr<RoutePlanning> route_planning_task,
   // std::shared_ptr<AutonomousDriving> autonomous_driving_task,
-  // std::atomic<bool>& is_task_running)
+  //std::atomic<bool>& is_task_running)
 : Node("autoware_bridge_node"),
   autoware_bridge_util_(util),
   // localization_task_(localization_task),
@@ -81,8 +81,9 @@ void AutowareBridgeNode::localizationRequestCallback(
     return;
   }
 
-  auto localization_task =
-      std::make_shared<Localization>(this, autoware_bridge_util_, is_task_running);
+  auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  auto localization_task = std::make_shared<Localization>(node_ptr, autoware_bridge_util_, is_task_running_);
+
   startTaskExecution(msg->task_id.data, msg->pose_stamped, localization_task);
 }
 
@@ -93,9 +94,8 @@ void AutowareBridgeNode::routePlanningRequestCallback(
   {
     return;
   }
-
-  auto route_planning_task =
-      std::make_shared<RoutePlanning>(this, autoware_bridge_util_, is_task_running);
+  auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  auto route_planning_task = std::make_shared<RoutePlanning>(node_ptr, autoware_bridge_util_, is_task_running_);
   startTaskExecution(msg->task_id.data, msg->pose_stamped, route_planning_task);
 }
 
@@ -107,9 +107,8 @@ void AutowareBridgeNode::autonomousDrivingRequestCallback(
     return;
   }
   geometry_msgs::msg::PoseStamped dummy_pose_stamped;
-
-  auto autonomous_driving_task =
-      std::make_shared<AutonomousDriving>(this, autoware_bridge_util_, is_task_running);
+  auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  auto autonomous_driving_task = std::make_shared<AutonomousDriving>(node_ptr, autoware_bridge_util_, is_task_running_);
   startTaskExecution(msg->data, dummy_pose_stamped, autonomous_driving_task);
 }
 
@@ -271,7 +270,8 @@ void AutowareBridgeNode::onTimerCallback()
       ((active_task_id.find("route_planning") == 0)) ||
       ((active_task_id.find("autonomous_driving") == 0)))
   {
-    if (!localization_task_->getLocalizationQuality())
+    //if (!localization_task_->getLocalizationQuality())
+    if (true)
     {
       // trigger reinitialization to UI.
       std_msgs::msg::Bool reinit_msg;

@@ -18,15 +18,10 @@
 #include <memory>
 #include <thread>
 
-class AutowareBridgeNode : public rclcpp::Node
+class AutowareBridgeNode : public rclcpp::Node , public std::enable_shared_from_this<AutowareBridgeNode>
 {
 public:
-  AutowareBridgeNode(
-      std::shared_ptr<AutowareBridgeUtil> util,
-      std::shared_ptr<Localization> localization_task,
-      std::shared_ptr<RoutePlanning> route_planning_task,
-      std::shared_ptr<AutonomousDriving> autonomous_driving_task,
-      std::atomic<bool> &is_task_running);
+  AutowareBridgeNode(std::shared_ptr<AutowareBridgeUtil> util);
 
   ~AutowareBridgeNode();
 
@@ -54,7 +49,7 @@ private:
   // std::shared_ptr<Localization> localization_task_;
   // std::shared_ptr<RoutePlanning> route_planning_task_;
   // std::shared_ptr<AutonomousDriving> autonomous_driving_task_;
-  std::atomic<bool> &is_task_running_; // Shared atomic flag
+  std::atomic<bool> is_task_running_; // Shared atomic flag
 
   // Callback Methods
   void localizationRequestCallback(const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);
@@ -63,8 +58,7 @@ private:
   void cancelTaskCallback(const std_msgs::msg::String::SharedPtr msg);
   void onTimerCallback();
   void publish_relocalization_notification(const bool localization_quality);
-  template <typename TaskType>
-
+  
   // Helper functions
   bool isTaskRejected(const std::string &task_name);
   void startTaskExecution(
