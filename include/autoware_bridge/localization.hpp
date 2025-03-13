@@ -15,7 +15,6 @@
 #include <mutex>
 
 enum class LocalizationTaskState {
-  UNINITIALIZED,
   INITIALIZATION,
   LOCALIZATION,
   LOCALIZATION_CHECK

@@ -104,7 +104,6 @@ void AutonomousDriving::execute(
             RCLCPP_WARN(node_->get_logger(), "HALT: 60 seconds elapsed while stopped.");
             // Handle HALT logic: re-engage, retry, or reset
             autoware_bridge_util_->updateHaltStatus(task_id, "HALT: 60 seconds elapsed while stopped");
-            state_ = AutonomousDrivingTaskState::ENGAGE_AUTO_DRIVE;
           }
         } else {
           // Vehicle is moving again, so start/reset the halt timer

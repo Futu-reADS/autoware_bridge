@@ -10,7 +10,7 @@ Localization::Localization(
   autoware_bridge_util_(autoware_bridge_util),
   is_cancel_requested_(false),
   is_task_running_(is_task_running), // Initialize reference
-  state_(LocalizationTaskState::UNINITIALIZED),
+  state_(LocalizationTaskState::INITIALIZATION),
   localization_state_(LocalizationInitializationState::UNKNOWN),
   localization_quality_(false),
   localization_start_time_(rclcpp::Time(0)) 
