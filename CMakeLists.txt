@@ -14,14 +14,15 @@ find_package(tier4_system_msgs REQUIRED)
 find_package(ftd_master_msgs REQUIRED)
 find_package(autoware_bridge_msgs REQUIRED)
 find_package(autoware_auto_msgs REQUIRED)
-find_package(autoware_auto_vehicle_msgs REQUIRED)
-find_package(autoware_auto_control_msgs REQUIRED)
-find_package(autoware_auto_planning_msgs REQUIRED)
-find_package(autoware_auto_perception_msgs REQUIRED)
-find_package(autoware_auto_mapping_msgs REQUIRED)
+#find_package(autoware_auto_vehicle_msgs REQUIRED)
+#find_package(autoware_auto_control_msgs REQUIRED)
+
+#find_package(autoware_auto_planning_msgs REQUIRED)
+#find_package(autoware_auto_perception_msgs REQUIRED)
+#find_package(autoware_auto_mapping_msgs REQUIRED)
 find_package(autoware_auto_system_msgs REQUIRED)
-find_package(autoware_auto_geometry_msgs REQUIRED)
-find_package(autoware_auto_common REQUIRED)
+#find_package(autoware_auto_geometry_msgs REQUIRED)
+#find_package(autoware_auto_common REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 # Include directories
@@ -53,14 +54,7 @@ ament_target_dependencies(autoware_bridge_node
   ftd_master_msgs
   autoware_bridge_msgs
   autoware_auto_msgs
-  autoware_auto_vehicle_msgs
-  autoware_auto_control_msgs
-  autoware_auto_planning_msgs
-  autoware_auto_perception_msgs
-  autoware_auto_mapping_msgs
   autoware_auto_system_msgs
-  autoware_auto_geometry_msgs
-  autoware_auto_common
   rosidl_default_runtime
 )
 
@@ -68,15 +62,15 @@ ament_target_dependencies(autoware_bridge_node
 rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME} "rosidl_typesupport_cpp")
 target_link_libraries(autoware_bridge_node ${cpp_typesupport_target})
 
-# Install targets
+#Install targets
 install(TARGETS autoware_bridge_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
 # Install header files
-install(DIRECTORY include/
-  DESTINATION include/
-)
+#install(DIRECTORY include/
+  #DESTINATION include/
+#)
 
 # Install service files
 install(DIRECTORY srv/

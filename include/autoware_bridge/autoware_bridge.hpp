@@ -11,6 +11,7 @@
 
 #include "autoware_bridge_msgs/msg/task_status_response.hpp"
 #include "ftd_master_msgs/msg/pose_stamped_with_task_id.hpp"
+#include <tier4_system_msgs/msg/mode_change_available.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <std_msgs/msg/bool.hpp>
 
@@ -24,6 +25,9 @@ public:
 
   ~AutowareBridgeNode();
 
+  // Alias for message types
+  using ModeChangeAvailable = tier4_system_msgs::msg::ModeChangeAvailable;
+
 private:
   // ROS2 Subscriptions
   rclcpp::Subscription<ftd_master_msgs::msg::PoseStampedWithTaskId>::SharedPtr
@@ -32,6 +36,7 @@ private:
       route_planning_request_subscription_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr autonomous_driving_request_subscription_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr cancel_task_subscription_;
+  rclcpp::Subscription<ModeChangeAvailable>::SharedPtr localization_quality_subscriber_;
 
   // ROS2 Publishers
   rclcpp::Publisher<autoware_bridge_msgs::msg::TaskStatusResponse>::SharedPtr
@@ -47,6 +52,7 @@ private:
   std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;
 
   std::atomic<bool>is_task_running_; 
+  bool localization_quality_;
 
   // Callback Methods
   void localizationRequestCallback(const ftd_master_msgs::msg::PoseStampedWithTaskId::SharedPtr msg);
@@ -54,6 +60,8 @@ private:
   void autonomousDrivingRequestCallback(const std_msgs::msg::String::SharedPtr msg);
   void cancelTaskCallback(const std_msgs::msg::String::SharedPtr msg);
   void onTimerCallback();
+  void localizationQualityCallback(const ModeChangeAvailable & msg);
+  bool getLocalizationQuality() const;
   void publish_relocalization_notification(const bool localization_quality);
   
   // Helper functions

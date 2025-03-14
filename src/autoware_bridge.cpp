@@ -10,7 +10,8 @@ AutowareBridgeNode::AutowareBridgeNode(
   std::shared_ptr<AutowareBridgeUtil> util)
 : Node("autoware_bridge_node"),
   autoware_bridge_util_(util),
-  is_task_running_(false)
+  is_task_running_(false),
+  localization_quality_(false)
 {
   this->declare_parameter("localization_topic", "/ftd_master/localization_request");
   this->declare_parameter("route_planning_topic", "/ftd_master/route_planning_request");
@@ -56,6 +57,11 @@ AutowareBridgeNode::AutowareBridgeNode(
 
   reinitialize_response_publisher_ = this->create_publisher<std_msgs::msg::Bool>("/autoware_bridge/reinitialize", 10);
 
+  localization_quality_subscriber_ = this->create_subscription<ModeChangeAvailable>(
+    "/system/component_state_monitor/component/autonomous/localization",
+    rclcpp::QoS(1).transient_local(),
+    std::bind(&AutowareBridgeNode::localizationQualityCallback, this, std::placeholders::_1));
+  
   RCLCPP_INFO(this->get_logger(), "Autoware Bridge Node has been initialized.");
 }
 
@@ -262,8 +268,7 @@ void AutowareBridgeNode::onTimerCallback()
       ((active_task_id.find("route_planning") == 0)) ||
       ((active_task_id.find("autonomous_driving") == 0)))
   {
-    //if (!localization_task_->getLocalizationQuality())
-    if (true)
+    if(!getLocalizationQuality())
     {
       // trigger reinitialization to UI.
       std_msgs::msg::Bool reinit_msg;
@@ -274,6 +279,14 @@ void AutowareBridgeNode::onTimerCallback()
   }
 }
 
+void AutowareBridgeNode::localizationQualityCallback(const ModeChangeAvailable & msg)
+{
+  localization_quality_ = msg.available;
+}
+
+bool AutowareBridgeNode::getLocalizationQuality() const { 
+  return localization_quality_; 
+}
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
