@@ -10,8 +10,7 @@ AutowareBridgeNode::AutowareBridgeNode(
   std::shared_ptr<AutowareBridgeUtil> util)
 : Node("autoware_bridge_node"),
   autoware_bridge_util_(util),
-  is_task_running_(false),
-  localization_quality_(false)
+  is_task_running_(false)
 {
   this->declare_parameter("localization_topic", "/ftd_master/localization_request");
   this->declare_parameter("route_planning_topic", "/ftd_master/route_planning_request");
@@ -57,11 +56,12 @@ AutowareBridgeNode::AutowareBridgeNode(
 
   reinitialize_response_publisher_ = this->create_publisher<std_msgs::msg::Bool>("/autoware_bridge/reinitialize", 10);
 
+
   localization_quality_subscriber_ = this->create_subscription<ModeChangeAvailable>(
     "/system/component_state_monitor/component/autonomous/localization",
     rclcpp::QoS(1).transient_local(),
     std::bind(&AutowareBridgeNode::localizationQualityCallback, this, std::placeholders::_1));
-  
+
   RCLCPP_INFO(this->get_logger(), "Autoware Bridge Node has been initialized.");
 }
 
@@ -268,7 +268,7 @@ void AutowareBridgeNode::onTimerCallback()
       ((active_task_id.find("route_planning") == 0)) ||
       ((active_task_id.find("autonomous_driving") == 0)))
   {
-    if(!getLocalizationQuality())
+    if (!localization_quality_)
     {
       // trigger reinitialization to UI.
       std_msgs::msg::Bool reinit_msg;
@@ -284,9 +284,6 @@ void AutowareBridgeNode::localizationQualityCallback(const ModeChangeAvailable &
   localization_quality_ = msg.available;
 }
 
-bool AutowareBridgeNode::getLocalizationQuality() const { 
-  return localization_quality_; 
-}
 int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
@@ -294,19 +291,9 @@ int main(int argc, char * argv[])
   // Create node and utility instance
   auto node = std::make_shared<rclcpp::Node>("autoware_bridge_node");
   auto autoware_bridge_util = std::make_shared<AutowareBridgeUtil>();
-  // std::atomic<bool> is_task_running(false); //Create shared flag
-
-  // // Create task instances with correct arguments
-  // auto localization_task =
-  //   std::make_shared<Localization>(node, autoware_bridge_util, is_task_running);
-  // auto route_planning_task =
-  //   std::make_shared<RoutePlanning>(node, autoware_bridge_util, is_task_running);
-  // auto autonomous_driving_task =
-  //   std::make_shared<AutonomousDriving>(node, autoware_bridge_util, is_task_running);
 
   // Create AutowareBridgeNode
-  auto bridge_node = std::make_shared<AutowareBridgeNode>(
-      autoware_bridge_util /*, localization_task, route_planning_task, autonomous_driving_task,is_task_running*/);
+  auto bridge_node = std::make_shared<AutowareBridgeNode>(autoware_bridge_util);
 
   rclcpp::spin(bridge_node);
   rclcpp::shutdown();
