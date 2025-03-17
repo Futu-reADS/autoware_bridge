@@ -288,8 +288,7 @@ int main(int argc, char * argv[])
 {
   rclcpp::init(argc, argv);
 
-  // Create node and utility instance
-  auto node = std::make_shared<rclcpp::Node>("autoware_bridge_node");
+  // Create utility instance and node instance
   auto autoware_bridge_util = std::make_shared<AutowareBridgeUtil>();
 
   // Create AutowareBridgeNode

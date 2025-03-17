@@ -14,15 +14,7 @@ find_package(tier4_system_msgs REQUIRED)
 find_package(ftd_master_msgs REQUIRED)
 find_package(autoware_bridge_msgs REQUIRED)
 find_package(autoware_auto_msgs REQUIRED)
-#find_package(autoware_auto_vehicle_msgs REQUIRED)
-#find_package(autoware_auto_control_msgs REQUIRED)
-
-#find_package(autoware_auto_planning_msgs REQUIRED)
-#find_package(autoware_auto_perception_msgs REQUIRED)
-#find_package(autoware_auto_mapping_msgs REQUIRED)
 find_package(autoware_auto_system_msgs REQUIRED)
-#find_package(autoware_auto_geometry_msgs REQUIRED)
-#find_package(autoware_auto_common REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 # Include directories
@@ -68,9 +60,9 @@ install(TARGETS autoware_bridge_node
 )
 
 # Install header files
-#install(DIRECTORY include/
-  #DESTINATION include/
-#)
+install(DIRECTORY include/
+  DESTINATION include/
+)
 
 # Install service files
 install(DIRECTORY srv/
