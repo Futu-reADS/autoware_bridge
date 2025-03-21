@@ -10,9 +10,19 @@ void AutowareBridgeUtil::updateTaskStatus(
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
 
-  if (task_map_.empty()) {
+  // If there is already a task and it's not the same as the new task_id, clear the map.
+  if (!task_map_.empty() && task_map_.find(task_id) == task_map_.end()) {
+    task_map_.clear();
+  }
+
+  // Ensure that the task entry exists.
+  if (task_map_.find(task_id) == task_map_.end()) {
     task_map_[task_id] = TaskInfo();
   }
+
+  /* if (task_map_.empty()) {
+    task_map_[task_id] = TaskInfo();
+  } */
 
   auto it = task_map_.find(task_id);
 
@@ -23,7 +33,7 @@ void AutowareBridgeUtil::updateTaskStatus(
         task_info.status = value;
         break;
       case TaskRequestType::REASON:
-        it->second.reason = value;
+        task_info.reason = value;
         break;
       case TaskRequestType::RETRIES:
         task_info.retry_number = number;
@@ -144,18 +154,45 @@ void AutowareBridgeUtil::handleStatusRequest(
   const std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Request> request,
   std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Response> response)
 {
+  RCLCPP_INFO(rclcpp::get_logger("autoware_bridge_util"), 
+              "[handleStatusRequest] Received request for task_id: %s", 
+              request->task_id.c_str());
+
   if (isTaskActive(request->task_id)) {
-    std::lock_guard<std::mutex> lock(task_mutex_);
-    TaskInfo task_info =
-      getTaskStatus(request->task_id);  // PENDING, RUNNING, RETRYING, SUCCESS, FAILED, CANCELLED , HALTED
+    RCLCPP_INFO(rclcpp::get_logger("autoware_bridge_util"), 
+                "[handleStatusRequest] Task %s is active. Retrieving status.", 
+                request->task_id.c_str());
+
+    //std::lock_guard<std::mutex> lock(task_mutex_);
+    
+    TaskInfo task_info = getTaskStatus(request->task_id);  // Retrieve task info
+
+    RCLCPP_INFO(rclcpp::get_logger("autoware_bridge_util"),
+                "[handleStatusRequest] Task status: %s, Retry number: %d, Total retries: %d, Reason: %s",
+                task_info.status.c_str(), 
+                task_info.retry_number, 
+                task_info.total_retries, 
+                task_info.reason.c_str());
+
     response->status = task_info.status;
     response->retry_number = task_info.retry_number;
     response->total_retries = task_info.total_retries;
     response->reason = task_info.reason;
+    
   } else {
+    RCLCPP_WARN(rclcpp::get_logger("autoware_bridge_util"),
+                "[handleStatusRequest] Task %s is not active. Rejecting request.", 
+                request->task_id.c_str());
+
     response->status = "REJECTED";
     response->reason = "Requested task_id is not the last active one";
     response->retry_number = 0;
     response->total_retries = 0;
+
+    RCLCPP_INFO(rclcpp::get_logger("autoware_bridge_util"),
+                "[handleStatusRequest] Response: status=REJECTED, reason=%s, retry_number=%d, total_retries=%d",
+                response->reason.c_str(),
+                response->retry_number,
+                response->total_retries);
   }
 }
