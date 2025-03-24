@@ -13,26 +13,26 @@
 #include <memory>
 #include <mutex>
 
-enum class AutonomousDrivingTaskState { 
-  ENGAGE_AUTO_DRIVE, 
-  WAIT_AUTO_DRIVE_READY, 
-  DRIVING 
+enum class AutonomousDrivingTaskState
+{
+  ENGAGE_AUTO_DRIVE,
+  WAIT_AUTO_DRIVE_READY,
+  DRIVING
 };
 
 const double DRIVE_WAIT_TIMEOUT_S = 10.0;
 const int MAX_DRIVE_RETRIES = 5;
-const double MAX_EGO_HALT_TIME = 60.0;  // Halting time in seconds
+const double MAX_EGO_HALT_TIME = 60.0; // Halting time in seconds
 
 class AutonomousDriving : public BaseTask
 {
 public:
   AutonomousDriving(
-    rclcpp::Node::SharedPtr node, 
-    std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
-    std::atomic<bool> & is_task_running);
-  void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
-    override;                       // Executes Driving
-  void cancelRequested() override;  // Requests task cancellation
+      rclcpp::Node::SharedPtr node,
+      std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util);
+  void execute(const std::string &task_id, const geometry_msgs::msg::PoseStamped &pose)
+      override;                    // Executes Driving
+  void cancelRequested() override; // Requests task cancellation
 
   // Alias for message types
   using RouteState = autoware_adapi_v1_msgs::msg::RouteState;
@@ -42,9 +42,8 @@ public:
 
 private:
   rclcpp::Node::SharedPtr node_;
-  std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;  
+  std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;
   std::atomic<bool> is_cancel_requested_;
-  std::atomic<bool> & is_task_running_;
   AutonomousDrivingTaskState state_;
   OperationModeState operation_mode_state_;
   uint16_t vehicle_motion_state_;
@@ -71,4 +70,4 @@ private:
   void engageAutoDrive();
 };
 
-#endif  // AUTONOMOUS_DRIVING_HPP
+#endif // AUTONOMOUS_DRIVING_HPP
