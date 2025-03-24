@@ -13,6 +13,7 @@ class DummyTask : public BaseTask {
 public:
   void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & /*pose*/) override {
     // Dummy implementation.
+    (void)task_id;
   }
   void cancelRequested() override {
     // Dummy implementation.
@@ -79,8 +80,14 @@ TEST_F(AutowareBridgeUtilTest, UpdateCancellationStatusTest) {
   std::string task_id = "cancel_task";
   util->updateCancellationStatus(task_id, "Cancelled by user");
   TaskInfo info = util->getTaskStatus(task_id);
+
+  // Verify main status and reason
   EXPECT_EQ(info.status, "CANCELLED");
   EXPECT_EQ(info.reason, "Cancelled by user");
+
+   // Verify cancel-specific fields
+  EXPECT_EQ(info.cancel_info.status, "CANCELLED");
+  EXPECT_EQ(info.cancel_info.reason, "Cancelled by user");
 }
 
 TEST_F(AutowareBridgeUtilTest, UpdateRunningStatusWithRetriesTest) {
@@ -201,8 +208,31 @@ TEST_F(AutowareBridgeUtilTest, ConcurrentUpdateTest) {
   EXPECT_LE(info.retry_number, num_iterations - 1);
 }
 
-// New Test: Multiple Tasks Scenario
 TEST_F(AutowareBridgeUtilTest, MultipleTasksTest) {
+  // Insert the first task.
+  util->updateTaskStatus("task1", TaskRequestType::STATUS, "PENDING");
+  // Only task1 should be active.
+  EXPECT_TRUE(util->isTaskActive("task1"));
+
+  // Insert the second task.
+  util->updateTaskStatus("task2", TaskRequestType::STATUS, "PENDING");
+  // After adding task2, the implementation clears previous tasks.
+  EXPECT_FALSE(util->isTaskActive("task1"));
+  EXPECT_TRUE(util->isTaskActive("task2"));
+
+  // Insert the third task.
+  util->updateTaskStatus("task3", TaskRequestType::STATUS, "PENDING");
+  // Now only task3 should be active.
+  EXPECT_FALSE(util->isTaskActive("task1"));
+  EXPECT_FALSE(util->isTaskActive("task2"));
+  EXPECT_TRUE(util->isTaskActive("task3"));
+
+  // getActiveTaskId() should return "task3".
+  EXPECT_EQ(util->getActiveTaskId(), "task3");
+}
+
+// New Test: Multiple Tasks Scenario
+/* TEST_F(AutowareBridgeUtilTest, MultipleTasksTest) {
   // Insert multiple tasks.
   std::vector<std::string> task_ids = {"task1", "task2", "task3"};
   for (const auto & id : task_ids) {
@@ -220,7 +250,9 @@ TEST_F(AutowareBridgeUtilTest, MultipleTasksTest) {
   std::cout << "Checking task3 status: " << util->isTaskActive("task3") << std::endl;
   std::cout << "Currently active task ID: " << util->getActiveTaskId() << std::endl;
   EXPECT_TRUE(std::find(task_ids.begin(), task_ids.end(), activeTaskId) != task_ids.end());
-}
+} */
+
+
 
 // New Test: Invalid Request Type (simulate out-of-range enum value)
 TEST_F(AutowareBridgeUtilTest, InvalidRequestTypeTest) {

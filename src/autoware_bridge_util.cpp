@@ -74,6 +74,10 @@ void AutowareBridgeUtil::updateCancellationStatus(
 {
   updateTaskStatus(task_id, TaskRequestType::STATUS, "CANCELLED");
   updateTaskStatus(task_id, TaskRequestType::REASON, reason);
+
+  // Update cancel-specific fields [cancel_info]
+  updateTaskStatus(task_id, TaskRequestType::CANCEL_STATUS, "CANCELLED");
+  updateTaskStatus(task_id, TaskRequestType::CANCEL_REASON, reason);
 }
 
 void AutowareBridgeUtil::updateRunningStatusWithRetries(const std::string & task_id, const int total_retries)
