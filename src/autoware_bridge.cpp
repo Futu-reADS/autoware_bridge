@@ -112,8 +112,8 @@ void AutowareBridgeNode::autonomousDrivingRequestCallback(
 
 bool AutowareBridgeNode::isTaskRejected(const std::string & task_name)
 {
-  std::shared_ptr<BaseTask> active_task = autoware_bridge_util_->getActiveTaskPtr();
-  if (active_task != nullptr) {
+  std::shared_ptr<BaseTask> active_task_ptr = autoware_bridge_util_->getActiveTaskPtr();
+  if (active_task_ptr != nullptr) {
     std::string active_task_id = autoware_bridge_util_->getActiveTaskId();
     RCLCPP_WARN(
       this->get_logger(), "Task %s is already running. %s request rejected.",
@@ -130,7 +130,6 @@ void AutowareBridgeNode::startTaskExecution(
 {
   RCLCPP_INFO(this->get_logger(), "Start task_id: %s", requested_task_id.c_str());
   autoware_bridge_util_->updateTaskId(requested_task_id);
-  autoware_bridge_util_->updateTaskStatus(requested_task_id, "PENDING");
   autoware_bridge_util_->setActiveTaskPtr(task);
   startThreadExecution(requested_task_id, pose_stamped);
 }
@@ -138,10 +137,10 @@ void AutowareBridgeNode::startTaskExecution(
 void AutowareBridgeNode::startThreadExecution(
   const std::string & requested_task_id, const geometry_msgs::msg::PoseStamped & pose_stamped)
 {
-  std::shared_ptr<BaseTask> active_task = autoware_bridge_util_->getActiveTaskPtr();
-  if (active_task) {
-    std::thread([this, active_task, requested_task_id, pose_stamped]() {
-      active_task->execute(requested_task_id, pose_stamped);
+  std::shared_ptr<BaseTask> active_task_ptr = autoware_bridge_util_->getActiveTaskPtr();
+  if (active_task_ptr) {
+    std::thread([this, active_task_ptr, requested_task_id, pose_stamped]() {
+      active_task_ptr->execute(requested_task_id, pose_stamped);
 
       std::lock_guard<std::mutex> lock(task_mutex_);
       publishTaskResponse(requested_task_id);
@@ -192,10 +191,10 @@ void AutowareBridgeNode::cancelTaskCallback(const std_msgs::msg::String::SharedP
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
   std::string requested_task_id = msg->data;
-  std::shared_ptr<BaseTask> active_task = autoware_bridge_util_->getActiveTaskPtr();
-  if (autoware_bridge_util_->isTaskActive(requested_task_id) && active_task) {
+  std::shared_ptr<BaseTask> active_task_ptr = autoware_bridge_util_->getActiveTaskPtr();
+  if (autoware_bridge_util_->isTaskActive(requested_task_id) && active_task_ptr) {
     is_cancel_requested_ = true;
-    active_task->cancel();
+    active_task_ptr->cancel();
   } else {
     autoware_bridge_msgs::msg::TaskStatusResponse cancel_response;
     cancel_response.task_id = requested_task_id;

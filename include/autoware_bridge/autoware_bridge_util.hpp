@@ -30,7 +30,7 @@ struct TaskInfo
 {
   TaskInfo(int max_retries)
   {
-    status = EMPTY_STRING;
+    status = "PENDING";
     reason = EMPTY_STRING;
     retry_number = 0;
     total_retries = max_retries;
