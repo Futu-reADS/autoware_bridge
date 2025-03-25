@@ -11,10 +11,10 @@ public:
 
   // The standard execute function.
   virtual void execute(
-    const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose) = 0;
+      const std::string &task_id, const geometry_msgs::msg::PoseStamped &pose) = 0;
 
   // Pure virtual function to request cancellation.
-  virtual void cancelRequested() = 0;
+  virtual void cancel() = 0;
 };
 
-#endif  // BASE_TASK_HPP
+#endif // BASE_TASK_HPP

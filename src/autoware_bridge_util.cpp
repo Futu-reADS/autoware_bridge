@@ -41,7 +41,7 @@ void AutowareBridgeUtil::updateTask(
   }
   else
   {
-    RCLCPP_WARN(
+    RCLCPP_ERROR(
         rclcpp::get_logger("autoware_bridge_util"),
         "Requested task_id: %s is not the active one to update.", task_id.c_str());
   }
@@ -53,7 +53,7 @@ void AutowareBridgeUtil::updateTaskId(const std::string &task_id)
   {
     task_map_.clear();
   }
-  task_map_[task_id] = TaskInfo();
+  task_map_[task_id] = TaskInfo(3);
 }
 
 void AutowareBridgeUtil::updateTaskStatus(const std::string &task_id, const std::string &status, std::string reason)
@@ -79,46 +79,10 @@ void AutowareBridgeUtil::updateTaskRetries(const std::string &task_id, int retry
 void AutowareBridgeUtil::updateCancellationStatus(
     const std::string &task_id, const std::string &status, std::string reason)
 {
-  TaskCancellationInfo task_cancellation_status = getTaskStatus(task_id).cancel_info;
+  TaskCancellationInfo task_cancellation_status = getTaskStatus(task_id);
   updateTask(task_id, TaskRequestType::CANCEL_STATUS, status);
   updateTask(task_id, TaskRequestType::CANCEL_REASON, reason);
 }
-
-// void AutowareBridgeUtil::updateFailStatus(const std::string &task_id, const std::string &reason)
-// {
-//   updateTaskStatus(task_id, TaskRequestType::STATUS, "FAILED");
-//   updateTaskStatus(task_id, TaskRequestType::REASON, reason);
-
-//   updateCancellationStatus(task_id, "REJECTED", "Task Failed");
-// }
-
-// void AutowareBridgeUtil::updateSuccessStatus(const std::string &task_id)
-// {
-//   updateTaskStatus(task_id, TaskRequestType::STATUS, "SUCCESS");
-
-//   updateCancellationStatus(task_id, "REJECTED", "Task Success");
-// }
-
-// void AutowareBridgeUtil::updateTaskStatusAndCancellationStatus(
-//     const std::string &task_id, const std::string &reason)
-// {
-//   updateTaskStatus(task_id, TaskRequestType::STATUS, "CANCELLED");
-//   updateCancellationStatus(task_id, "CANCELLED", reason);
-// }
-
-// void AutowareBridgeUtil::updateRunningStatusWithRetries(const std::string &task_id, const int total_retries)
-// {
-//   // Update task status to RUNNING
-//   updateTaskStatus(task_id, TaskRequestType::STATUS, "RUNNING");
-//   // Update total retries
-//   updateTaskStatus(task_id, TaskRequestType::TOTAL_RETRIES, "", total_retries);
-// }
-
-// void AutowareBridgeUtil::updateHaltStatus(const std::string &task_id, const std::string &reason)
-// {
-//   updateTaskStatus(task_id, TaskRequestType::STATUS, "HALTED");
-//   updateTaskStatus(task_id, TaskRequestType::REASON, reason);
-// }
 
 bool AutowareBridgeUtil::isTaskActive(const std::string &task_id)
 {
@@ -141,12 +105,6 @@ std::string AutowareBridgeUtil::getActiveTaskId()
   return "NO_ACTIVE_TASK";
 }
 
-bool AutowareBridgeUtil::isActiveTaskIdEmpty()
-{
-  std::lock_guard<std::mutex> lock(task_mutex_);
-  return task_map_.empty();
-}
-
 TaskInfo AutowareBridgeUtil::getTaskStatus(const std::string &task_id)
 {
   TaskInfo data;
@@ -166,37 +124,34 @@ TaskInfo AutowareBridgeUtil::getTaskStatus(const std::string &task_id)
   return data;
 }
 
-void AutowareBridgeUtil::setActiveTask(std::shared_ptr<BaseTask> task_ptr)
+void AutowareBridgeUtil::setActiveTaskPtr(std::shared_ptr<BaseTask> task_ptr)
 {
-  // std::lock_guard<std::mutex> lock(task_mutex_);
   active_task_ = task_ptr;
 }
 
-void AutowareBridgeUtil::clearActiveTask()
+void AutowareBridgeUtil::clearActiveTaskPtr()
 {
-  // std::lock_guard<std::mutex> lock(task_mutex_);
-  active_task_ = nullptr; // Reset active task pointer
+  active_task_ = nullptr;
 }
 
-std::shared_ptr<BaseTask> AutowareBridgeUtil::getActiveTaskPointer()
+std::shared_ptr<BaseTask> AutowareBridgeUtil::getActiveTaskPtr()
 {
-  // std::lock_guard<std::mutex> lock(task_mutex_);
   return active_task_;
 }
 
 // use when status is requested in terms of service.
-void AutowareBridgeUtil::handleStatusRequest(
+void AutowareBridgeUtil::handleStatusRequestSrvc(
     const std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Request> request,
     std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Response> response)
 {
   RCLCPP_INFO(rclcpp::get_logger("autoware_bridge_util"),
-              "[handleStatusRequest] Received request for task_id: %s",
+              "[handleStatusRequestSrvc] Received request for task_id: %s",
               request->task_id.c_str());
 
   if (isTaskActive(request->task_id))
   {
     RCLCPP_INFO(rclcpp::get_logger("autoware_bridge_util"),
-                "[handleStatusRequest] Task %s is active. Retrieving status.",
+                "[handleStatusRequestSrvc] Task %s is active. Retrieving status.",
                 request->task_id.c_str());
 
     // std::lock_guard<std::mutex> lock(task_mutex_);
@@ -204,7 +159,7 @@ void AutowareBridgeUtil::handleStatusRequest(
     TaskInfo task_info = getTaskStatus(request->task_id); // Retrieve task info
 
     RCLCPP_INFO(rclcpp::get_logger("autoware_bridge_util"),
-                "[handleStatusRequest] Task status: %s, Retry number: %d, Total retries: %d, Reason: %s",
+                "[handleStatusRequestSrvc] Task status: %s, Retry number: %d, Total retries: %d, Reason: %s",
                 task_info.status.c_str(),
                 task_info.retry_number,
                 task_info.total_retries,
@@ -218,7 +173,7 @@ void AutowareBridgeUtil::handleStatusRequest(
   else
   {
     RCLCPP_WARN(rclcpp::get_logger("autoware_bridge_util"),
-                "[handleStatusRequest] Task %s is not active. Rejecting request.",
+                "[handleStatusRequestSrvc] Task %s is not active. Rejecting request.",
                 request->task_id.c_str());
 
     response->status = "REJECTED";
@@ -227,7 +182,7 @@ void AutowareBridgeUtil::handleStatusRequest(
     response->total_retries = 0;
 
     RCLCPP_INFO(rclcpp::get_logger("autoware_bridge_util"),
-                "[handleStatusRequest] Response: status=REJECTED, reason=%s, retry_number=%d, total_retries=%d",
+                "[handleStatusRequestSrvc] Response: status=REJECTED, reason=%s, retry_number=%d, total_retries=%d",
                 response->reason.c_str(),
                 response->retry_number,
                 response->total_retries);

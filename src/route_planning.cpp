@@ -54,7 +54,7 @@ void RoutePlanning::execute(
     if (success)
     {
       // SUCCESS
-      autoware_bridge_util_->updateTaskStatus(task_id, "SUCCESS");
+      autoware_bridge_util_->updateSuccessStatus(task_id);
       RCLCPP_INFO(node_->get_logger(), "Route planning task %s successful.", task_id.c_str());
       break;
     }
@@ -151,7 +151,7 @@ void RoutePlanning::execute(
   }
 }
 
-void RoutePlanning::cancelRequested()
+void RoutePlanning::cancel()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
   is_cancel_requested_ = true;

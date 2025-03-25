@@ -32,7 +32,7 @@ public:
       std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util);
 
   void execute(const std::string &task_id, const geometry_msgs::msg::PoseStamped &init_pose) override; // Executes localization
-  void cancelRequested() override;                                                                     // Requests task cancellation
+  void cancel() override;                                                                              // Requests task cancellation
   bool getLocalizationQuality() const;                                                                 // this getter is used in autoware_bridge.cpp
 
   // Alias
@@ -54,7 +54,7 @@ private:
   std::mutex task_mutex_;
 
   // Helper methods
-  void sendCmdGate();
+  // void sendCmdGate();
   void pubInitPose(const geometry_msgs::msg::PoseStamped &init_pose);
 
   // callbacks

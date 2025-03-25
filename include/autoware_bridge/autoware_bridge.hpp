@@ -52,7 +52,7 @@ private:
     // Shared Utility instance
     std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;
 
-    std::atomic<bool> is_task_running_;
+    bool is_cancel_requested_;
     bool localization_quality_;
     std::mutex task_mutex_;
 
@@ -73,7 +73,7 @@ private:
         std::shared_ptr<BaseTask> task);
     void startThreadExecution(
         const std::string &requested_task_id, const geometry_msgs::msg::PoseStamped &pose_stamped);
-    void publishTaskRejectionReason(const std::string &task_name);
+    void publishTaskRejectionReason(const std::string &task_name, const std::string &active_task_id);
     void publishTaskResponse(const std::string &task_id);
     void publishCancelResponse(const std::string &task_id);
 
@@ -81,7 +81,7 @@ private:
         const std::string &task_id, const std::string &status, const std::string &reason);
 
     // Service Handlers
-    void handleStatusRequest(
+    void handleStatusRequestSrvc(
         const std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Request> request,
         std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Response> response);
 

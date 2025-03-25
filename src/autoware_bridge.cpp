@@ -10,7 +10,7 @@ AutowareBridgeNode::AutowareBridgeNode(
     std::shared_ptr<AutowareBridgeUtil> util)
     : Node("autoware_bridge_node"),
       autoware_bridge_util_(util),
-      is_task_running_(false)
+      is_cancel_requested_(false)
 {
   this->declare_parameter("localization_topic", "/ftd_master/localization_request");
   this->declare_parameter("route_planning_topic", "/ftd_master/route_planning_request");
@@ -48,7 +48,7 @@ AutowareBridgeNode::AutowareBridgeNode(
   // ROS2 Services
   status_service_ = this->create_service<autoware_bridge::srv::GetTaskStatus>(
       "check_task_status", std::bind(
-                               &AutowareBridgeNode::handleStatusRequest, this, std::placeholders::_1,
+                               &AutowareBridgeNode::handleStatusRequestSrvc, this, std::placeholders::_1,
                                std::placeholders::_2));
 
   // Create a timer to check localization quality periodically.
@@ -111,11 +111,13 @@ void AutowareBridgeNode::autonomousDrivingRequestCallback(
 
 bool AutowareBridgeNode::isTaskRejected(const std::string &task_name)
 {
-  if (is_task_running_.exchange(true))
+  std::shared_ptr<BaseTask> active_task = autoware_bridge_util_->getActiveTaskPtr();
+  if (active_task != nullptr)
   {
+    std::string active_task_id = autoware_bridge_util_->getActiveTaskId();
     RCLCPP_WARN(
-        this->get_logger(), "A task is already running. %s request rejected.", task_name.c_str());
-    publishTaskRejectionReason(task_name);
+        this->get_logger(), "Task %s is already running. %s request rejected.", active_task_id.c_str(), task_name.c_str());
+    publishTaskRejectionReason(task_name, active_task_id);
     return true;
   }
   return false;
@@ -128,24 +130,27 @@ void AutowareBridgeNode::startTaskExecution(
   RCLCPP_INFO(this->get_logger(), "Start task_id: %s", requested_task_id.c_str());
   autoware_bridge_util_->updateTaskId(requested_task_id);
   autoware_bridge_util_->updateTaskStatus(requested_task_id, "PENDING");
-  autoware_bridge_util_->setActiveTask(task);
+  autoware_bridge_util_->setActiveTaskPtr(task);
   startThreadExecution(requested_task_id, pose_stamped);
 }
 
 void AutowareBridgeNode::startThreadExecution(
     const std::string &requested_task_id, const geometry_msgs::msg::PoseStamped &pose_stamped)
 {
-  std::shared_ptr<BaseTask> active_task = autoware_bridge_util_->getActiveTaskPointer();
+  std::shared_ptr<BaseTask> active_task = autoware_bridge_util_->getActiveTaskPtr();
   if (active_task)
   {
     std::thread([this, active_task, requested_task_id, pose_stamped]()
                 {
       active_task->execute(requested_task_id, pose_stamped);
-      
-      is_task_running_ = false;
+
       std::lock_guard<std::mutex> lock(task_mutex_);
-      autoware_bridge_util_->clearActiveTask();
-      publishTaskResponse(requested_task_id); })
+      publishTaskResponse(requested_task_id);
+      if(is_cancel_requested_){
+        publishCancelResponse(requested_task_id);
+        is_cancel_requested_ = false;
+      }
+      autoware_bridge_util_->clearActiveTaskPtr(); })
         .detach();
   }
   else
@@ -155,9 +160,8 @@ void AutowareBridgeNode::startThreadExecution(
   }
 }
 
-void AutowareBridgeNode::publishTaskRejectionReason(const std::string &task_name)
+void AutowareBridgeNode::publishTaskRejectionReason(const std::string &task_name, const std::string &active_task_id)
 {
-  std::string active_task_id = autoware_bridge_util_->getActiveTaskId();
   if (active_task_id == "NO_ACTIVE_TASK")
   {
     RCLCPP_WARN(
@@ -196,45 +200,18 @@ void AutowareBridgeNode::cancelTaskCallback(const std_msgs::msg::String::SharedP
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
   std::string requested_task_id = msg->data;
-  if (autoware_bridge_util_->isTaskActive(requested_task_id))
+  std::shared_ptr<BaseTask> active_task = autoware_bridge_util_->getActiveTaskPtr();
+  if (autoware_bridge_util_->isTaskActive(requested_task_id) && active_task)
   {
-
-    TaskInfo task_status = autoware_bridge_util_->getTaskStatus(requested_task_id);
-    if (task_status.status == "FAILED" || task_status.status == "SUCCESS")
-    {
-      publishCancelResponse(requested_task_id);
-      return;
-    }
-
-    autoware_bridge_util_->updateCancellationStatus(requested_task_id, "REQUESTED");
-
-    std::shared_ptr<BaseTask> active_task = autoware_bridge_util_->getActiveTaskPointer();
-    if (active_task)
-    {
-      active_task->cancelRequested();
-      TaskCancellationInfo task_cancellation_status =
-          autoware_bridge_util_->getTaskStatus(requested_task_id).cancel_info;
-      while (task_cancellation_status.status == "REQUESTED")
-      {
-        // some delay (10ms)
-      }
-
-      publishCancelResponse(requested_task_id);
-    }
-    else
-    {
-      publishCancelResponse(requested_task_id);
-      RCLCPP_ERROR(
-          this->get_logger(), "task_id: %s cancel request failed as active task pointer is null.",
-          requested_task_id.c_str());
-    }
+    is_cancel_requested_ = true;
+    active_task->cancelRequested();
   }
   else
   {
     autoware_bridge_msgs::msg::TaskStatusResponse cancel_response;
     cancel_response.task_id = requested_task_id;
     cancel_response.status = "REJECTED";
-    cancel_response.reason = "Requested task ID is not the active task.";
+    cancel_response.reason = "Requested task ID is not active currently.";
     cancel_response_publisher_->publish(cancel_response);
   }
 }
@@ -274,11 +251,11 @@ autoware_bridge_msgs::msg::TaskStatusResponse AutowareBridgeNode::createTaskStat
   return response;
 }
 
-void AutowareBridgeNode::handleStatusRequest(
+void AutowareBridgeNode::handleStatusRequestSrvc(
     const std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Request> request,
     std::shared_ptr<autoware_bridge::srv::GetTaskStatus::Response> response)
 {
-  autoware_bridge_util_->handleStatusRequest(request, response);
+  autoware_bridge_util_->handleStatusRequestSrvc(request, response);
 }
 
 void AutowareBridgeNode::onTimerCallback()

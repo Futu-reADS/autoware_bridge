@@ -31,8 +31,8 @@ public:
       rclcpp::Node::SharedPtr node,
       std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util);
   void execute(const std::string &task_id, const geometry_msgs::msg::PoseStamped &pose)
-      override;                    // Executes Driving
-  void cancelRequested() override; // Requests task cancellation
+      override;           // Executes Driving
+  void cancel() override; // Requests task cancellation
 
   // Alias for message types
   using RouteState = autoware_adapi_v1_msgs::msg::RouteState;

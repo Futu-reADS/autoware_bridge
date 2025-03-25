@@ -127,7 +127,7 @@ void Localization::execute(
   }
   // std::this_thread::sleep_for(100ms);
 }
-void Localization::cancelRequested()
+void Localization::cancel()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
   is_cancel_requested_ = true;

@@ -25,17 +25,30 @@ enum class TaskRequestType
 
 struct TaskCancellationInfo
 {
-  std::string status = EMPTY_STRING;
-  std::string reason = EMPTY_STRING;
+  TaskCancellationInfo()
+  {
+    status = EMPTY_STRING;
+    reason = EMPTY_STRING;
+  }
+
+  std::string status;
+  std::string reason;
 };
 
 struct TaskInfo
 {
-  std::string status =
-      EMPTY_STRING;                  // rejected -> pending -> running -> retrying -> success | failed -> cancelled
-  std::string reason = EMPTY_STRING; // Failure reason or rejection explanation
-  int32_t retry_number = 0;
-  int32_t total_retries = 0;
+  TaskInfo(int max_retries)
+  {
+    status = EMPTY_STRING;
+    reason = EMPTY_STRING;
+    retry_number = 0;
+    total_retries = max_retries;
+  }
+
+  std::string status; // rejected -> pending -> running -> retrying -> success | failed -> cancelled
+  std::string reason; // Failure reason or rejection explanation
+  int32_t retry_number;
+  int32_t total_retries;
   TaskCancellationInfo cancel_info;
 };
 
@@ -50,26 +63,18 @@ public:
 
   void updateTaskStatus(const std::string &task_id, const std::string &status, std::string reason = "");
   void updateTaskRetries(const std::string &task_id, int retryNumber);
-  void updateCancellationStatus(
+  void AutowareBridgeUtil::updateCancellationStatus(
       const std::string &task_id, const std::string &status, std::string reason = "");
-
-  // void updateFailStatus(const std::string &task_id, const std::string &reason);
-  // void updateSuccessStatus(const std::string &task_id);
-  // void updateCancellationStatus(const std::string &task_id, const std::string &reason);
-  // void updateCancellationRequested(const std::string &task_id);
-  // void updateRunningStatusWithRetries(const std::string &task_id, const int total_retries);
-  // void updateHaltStatus(const std::string &task_id, const std::string &reason);
 
   bool isTaskActive(const std::string &task_id);
   std::string getActiveTaskId();
-  bool isActiveTaskIdEmpty();
   TaskInfo getTaskStatus(const std::string &task_id);
 
-  void setActiveTask(std::shared_ptr<BaseTask> task_ptr);
-  void clearActiveTask();
-  std::shared_ptr<BaseTask> getActiveTaskPointer();
+  void setActiveTaskPtr(std::shared_ptr<BaseTask> task_ptr);
+  void clearActiveTaskPtr();
+  std::shared_ptr<BaseTask> getActiveTaskPtr();
 
-  void handleStatusRequest(
+  void handleStatusRequestSrvc(
       const std::shared_ptr<autoware_bridge::srv::GetTaskStatus_Request> request,
       std::shared_ptr<autoware_bridge::srv::GetTaskStatus_Response> response);
 

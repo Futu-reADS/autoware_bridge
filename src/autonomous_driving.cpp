@@ -131,7 +131,7 @@ void AutonomousDriving::execute(
   }
 }
 
-void AutonomousDriving::cancelRequested()
+void AutonomousDriving::cancel()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
   is_cancel_requested_ = true;
