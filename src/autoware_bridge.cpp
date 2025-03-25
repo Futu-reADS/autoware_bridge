@@ -199,7 +199,7 @@ void AutowareBridgeNode::cancelTaskCallback(const std_msgs::msg::String::SharedP
   if (autoware_bridge_util_->isTaskActive(requested_task_id))
   {
 
-    TaskCancellationInfo task_status = autoware_bridge_util_->getTaskStatus(task_id);
+    TaskInfo task_status = autoware_bridge_util_->getTaskStatus(requested_task_id);
     if (task_status.status == "FAILED" || task_status.status == "SUCCESS")
     {
       publishCancelResponse(requested_task_id);
@@ -213,7 +213,7 @@ void AutowareBridgeNode::cancelTaskCallback(const std_msgs::msg::String::SharedP
     {
       active_task->cancelRequested();
       TaskCancellationInfo task_cancellation_status =
-          autoware_bridge_util_->getTaskStatus(task_id).cancel_info;
+          autoware_bridge_util_->getTaskStatus(requested_task_id).cancel_info;
       while (task_cancellation_status.status == "REQUESTED")
       {
         // some delay (10ms)

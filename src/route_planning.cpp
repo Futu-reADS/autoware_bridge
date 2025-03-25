@@ -2,8 +2,7 @@
 
 RoutePlanning::RoutePlanning(
     rclcpp::Node::SharedPtr node,
-    std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util,
-    std::atomic<bool> &is_task_running)
+    std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util)
     : node_(node),
       autoware_bridge_util_(autoware_bridge_util),
       is_cancel_requested_(false),
@@ -55,7 +54,7 @@ void RoutePlanning::execute(
     if (success)
     {
       // SUCCESS
-      autoware_bridge_util_->updateSuccessStatus(task_id);
+      autoware_bridge_util_->updateTaskStatus(task_id, "SUCCESS");
       RCLCPP_INFO(node_->get_logger(), "Route planning task %s successful.", task_id.c_str());
       break;
     }

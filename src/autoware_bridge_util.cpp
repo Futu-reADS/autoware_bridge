@@ -79,7 +79,7 @@ void AutowareBridgeUtil::updateTaskRetries(const std::string &task_id, int retry
 void AutowareBridgeUtil::updateCancellationStatus(
     const std::string &task_id, const std::string &status, std::string reason)
 {
-  TaskCancellationInfo task_cancellation_status = getTaskStatus(task_id);
+  TaskCancellationInfo task_cancellation_status = getTaskStatus(task_id).cancel_info;
   updateTask(task_id, TaskRequestType::CANCEL_STATUS, status);
   updateTask(task_id, TaskRequestType::CANCEL_REASON, reason);
 }

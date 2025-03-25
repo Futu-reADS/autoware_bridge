@@ -50,7 +50,7 @@ public:
 
   void updateTaskStatus(const std::string &task_id, const std::string &status, std::string reason = "");
   void updateTaskRetries(const std::string &task_id, int retryNumber);
-  void AutowareBridgeUtil::updateCancellationStatus(
+  void updateCancellationStatus(
       const std::string &task_id, const std::string &status, std::string reason = "");
 
   // void updateFailStatus(const std::string &task_id, const std::string &reason);
