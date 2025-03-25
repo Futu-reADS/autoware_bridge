@@ -1,30 +1,35 @@
-#include <gtest/gtest.h>
 #include "autoware_bridge/autoware_bridge_util.hpp"
-#include "autoware_bridge/srv/get_task_status.hpp"
 #include "autoware_bridge/base_task.hpp"
+#include "autoware_bridge/srv/get_task_status.hpp"
+
+#include <gtest/gtest.h>
+
+#include <chrono>
 #include <memory>
 #include <string>
 #include <thread>
 #include <vector>
-#include <chrono>
 
 // Dummy BaseTask implementation to test active task management.
-class DummyTask : public BaseTask {
+class DummyTask : public BaseTask
+{
 public:
-  void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & /*pose*/) override {
+  void execute(
+    const std::string & task_id, const geometry_msgs::msg::PoseStamped & /*pose*/) override
+  {
     // Dummy implementation.
     (void)task_id;
   }
-  void cancelRequested() override {
+  void cancel() override
+  {
     // Dummy implementation.
   }
 };
 
-class AutowareBridgeUtilTest : public ::testing::Test {
+class AutowareBridgeUtilTest : public ::testing::Test
+{
 protected:
-  void SetUp() override {
-    util = std::make_shared<AutowareBridgeUtil>();
-  }
+  void SetUp() override { util = std::make_shared<AutowareBridgeUtil>(); }
   std::shared_ptr<AutowareBridgeUtil> util;
 };
 
@@ -111,7 +116,7 @@ TEST_F(AutowareBridgeUtilTest, IsTaskActiveTest) {
   std::string task_id = "active_task";
   // Initially, no task exists.
   EXPECT_FALSE(util->isTaskActive(task_id));
-  
+
   util->updateTaskStatus(task_id, TaskRequestType::STATUS, "PENDING");
   EXPECT_TRUE(util->isTaskActive(task_id));
 }
@@ -119,7 +124,7 @@ TEST_F(AutowareBridgeUtilTest, IsTaskActiveTest) {
 TEST_F(AutowareBridgeUtilTest, GetActiveTaskIdTest) {
   // When no tasks exist, getActiveTaskId() should return "NO_ACTIVE_TASK".
   EXPECT_EQ(util->getActiveTaskId(), "NO_ACTIVE_TASK");
-  
+
   // Add a task.
   std::string task_id = "active_task";
   util->updateTaskStatus(task_id, TaskRequestType::STATUS, "PENDING");
@@ -138,7 +143,7 @@ TEST_F(AutowareBridgeUtilTest, GetTaskStatusTest) {
   // For a non-existent task, getTaskStatus() returns default TaskInfo with empty status.
   TaskInfo info = util->getTaskStatus(task_id);
   EXPECT_EQ(info.status, "");
-  
+
   util->updateTaskStatus(task_id, TaskRequestType::STATUS, "PENDING");
   info = util->getTaskStatus(task_id);
   EXPECT_EQ(info.status, "PENDING");
@@ -156,7 +161,7 @@ TEST_F(AutowareBridgeUtilTest, HandleStatusRequestTest) {
   auto request = std::make_shared<autoware_bridge::srv::GetTaskStatus::Request>();
   auto response = std::make_shared<autoware_bridge::srv::GetTaskStatus::Response>();
   request->task_id = "service_task";
-  
+
   // With no active task entry, handleStatusRequest should set response to REJECTED.
   util->handleStatusRequest(request, response);
   EXPECT_EQ(response->status, "REJECTED");
@@ -238,12 +243,12 @@ TEST_F(AutowareBridgeUtilTest, MultipleTasksTest) {
   for (const auto & id : task_ids) {
     util->updateTaskStatus(id, TaskRequestType::STATUS, "PENDING");
   }
-  
+
   // Check each task is active.
   for (const auto & id : task_ids) {
     EXPECT_TRUE(util->isTaskActive(id));
   }
-  
+
   // getActiveTaskId() returns the first found task; ensure it is one of the tasks.
   std::string activeTaskId = util->getActiveTaskId();
   std::cout << "Checking task2 status: " << util->isTaskActive("task2") << std::endl;
@@ -251,8 +256,6 @@ TEST_F(AutowareBridgeUtilTest, MultipleTasksTest) {
   std::cout << "Currently active task ID: " << util->getActiveTaskId() << std::endl;
   EXPECT_TRUE(std::find(task_ids.begin(), task_ids.end(), activeTaskId) != task_ids.end());
 } */
-
-
 
 /* // New Test: Invalid Request Type (simulate out-of-range enum value)
 TEST_F(AutowareBridgeUtilTest, InvalidRequestTypeTest) {
