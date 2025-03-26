@@ -81,7 +81,8 @@ install(DIRECTORY srv/
 )
 
 # Install launch files
-install(DIRECTORY launch/
+install(DIRECTORY 
+  launch
   DESTINATION share/${PROJECT_NAME}
 )
 
