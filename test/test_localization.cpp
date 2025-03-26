@@ -1,108 +1,111 @@
 // test_localization.cpp
 
 #include <gtest/gtest.h>
+#include "rclcpp/rclcpp.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
 #include "autoware_bridge/localization.hpp"
 #include "autoware_bridge/autoware_bridge_util.hpp"
-#include "geometry_msgs/msg/pose_stamped.hpp"
-#include "rclcpp/rclcpp.hpp"
 
 #include <atomic>
+#include <chrono>
 #include <mutex>
+#include <string>
 #include <thread>
 #include <vector>
-#include <chrono>
 
-// --- Dummy definitions for missing types and constants ---
+using namespace std::chrono_literals;
 
-// These enums must match your production definitions.
-enum class LocalizationTaskState { INITIALIZATION, LOCALIZATION, LOCALIZATION_CHECK };
-enum class LocalizationInitializationState { UNKNOWN, UNINITIALIZED, INITIALIZED };
+// For testing, these constants should match your production definitions.
+//static constexpr int MAX_INIT_RETRIES = 3;
+//static constexpr double LOC_WAIT_TIMEOUT_S = 1.0;
 
-// Define maximum initialization retries and localization timeout for testing.
-const int MAX_INIT_RETRIES = 3;
-const double LOC_WAIT_TIMEOUT_S = 1.0;
-
-// Dummy message for mode change availability.
-struct ModeChangeAvailable {
-  bool available;
-};
-
-// Mimic LocalizationInitializationState message.
-struct DummyLocalizationInitializationState {
-  int state; // reinterpret as LocalizationInitializationState when needed.
-};
-
-// --- TestAutowareBridgeUtil --------------------------------------------------
-// A dummy subclass of AutowareBridgeUtil that records calls for verification.
-
-class TestAutowareBridgeUtil : public AutowareBridgeUtil {
+// -----------------------------------------------------------------------------
+// DummyBridgeUtil: a simple subclass of AutowareBridgeUtil that records calls.
+class DummyBridgeUtil : public AutowareBridgeUtil {
 public:
   std::vector<std::string> call_log;
   std::mutex log_mutex;
 
-  // Override methods to record calls.
-  void updateTaskStatus(
-    const std::string & task_id,
-    TaskRequestType request_type,
-    const std::string & value,
-    int number = 0) override
-  {
+  void updateTaskStatus(const std::string & task_id, const std::string & status, std::string reason = "") {
     {
       std::lock_guard<std::mutex> lock(log_mutex);
-      call_log.push_back("updateTaskStatus: " + task_id +
-                           " type:" + std::to_string(static_cast<int>(request_type)) +
-                           " value:" + value + " num:" + std::to_string(number));
+      call_log.push_back("updateTaskStatus: " + task_id + " status:" + status + " reason:" + reason);
     }
-    AutowareBridgeUtil::updateTaskStatus(task_id, request_type, value, number);
+    // Call base implementation.
+    AutowareBridgeUtil::updateTaskStatus(task_id, status, reason);
   }
 
-  void updateRunningStatusWithRetries(const std::string & task_id, const int total_retries) override {
+  void updateTaskRetries(const std::string & task_id, int retry_count) {
     {
       std::lock_guard<std::mutex> lock(log_mutex);
-      call_log.push_back("updateRunningStatusWithRetries: " + task_id +
-                           " total_retries:" + std::to_string(total_retries));
+      call_log.push_back("updateTaskRetries: " + task_id + " retry:" + std::to_string(retry_count));
     }
-    AutowareBridgeUtil::updateRunningStatusWithRetries(task_id, total_retries);
+    AutowareBridgeUtil::updateTaskRetries(task_id, retry_count);
   }
-
-  void updateCancellationStatus(const std::string & task_id, const std::string & reason) override {
+  
+  void updateTask(const std::string & task_id, TaskRequestType type, const std::string & value, int number = 0) {
     {
       std::lock_guard<std::mutex> lock(log_mutex);
-      call_log.push_back("updateCancellationStatus: " + task_id + " reason:" + reason);
+      call_log.push_back("updateTask: " + task_id +
+                          " type:" + std::to_string(static_cast<int>(type)) +
+                          " value:" + value +
+                          " num:" + std::to_string(number));
     }
-    AutowareBridgeUtil::updateCancellationStatus(task_id, reason);
-  }
-
-  void updateFailStatus(const std::string & task_id, const std::string & reason) override {
-    {
-      std::lock_guard<std::mutex> lock(log_mutex);
-      call_log.push_back("updateFailStatus: " + task_id + " reason:" + reason);
-    }
-    AutowareBridgeUtil::updateFailStatus(task_id, reason);
-  }
-
-  void updateSuccessStatus(const std::string & task_id) override {
-    {
-      std::lock_guard<std::mutex> lock(log_mutex);
-      call_log.push_back("updateSuccessStatus: " + task_id);
-    }
-    AutowareBridgeUtil::updateSuccessStatus(task_id);
+    AutowareBridgeUtil::updateTask(task_id, type, value, number);
   }
 };
 
-// --- Test Fixture for Localization -----------------------------------------
+// -----------------------------------------------------------------------------
+// TestableLocalization: a subclass of Localization that exposes internal members
+// for testing. In your production header, mark the following as protected (or friend the test):
+//   - pubInitPose()
+//   - localizationQualityCallback()
+//   - localizationStateCallback()
+//   - localization_start_time_
+//   - state_
+class TestableLocalization : public Localization {
+public:
+  using Localization::Localization;  // Inherit constructors
+
+  // Public wrapper for pubInitPose.
+  void testPubInitPose(const geometry_msgs::msg::PoseStamped & init_pose) {
+    pubInitPose(init_pose);
+  }
+
+  // Public wrappers for callbacks.
+  void testLocalizationQualityCallback(const tier4_system_msgs::msg::ModeChangeAvailable & msg) {
+    localizationQualityCallback(msg);
+  }
+  
+  void testLocalizationStateCallback(const autoware_adapi_v1_msgs::msg::LocalizationInitializationState & msg) {
+    localizationStateCallback(msg);
+  }
+  
+  // Public setter and getter for localization_start_time_.
+  void setLocalizationStartTime(const rclcpp::Time & time) {
+    localization_start_time_ = time;
+  }
+  rclcpp::Time getLocalizationStartTime() const {
+    return localization_start_time_;
+  }
+  
+  // Expose a method to force internal state changes.
+  void forceSetLocalizationQuality(bool quality) {
+    localization_quality_ = quality;
+  }
+  void forceSetState(LocalizationTaskState new_state) {
+    state_ = new_state;
+  }
+};
 
 class LocalizationTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    // Initialize ROS2.
     rclcpp::init(0, nullptr);
     node = rclcpp::Node::make_shared("test_localization_node");
     is_task_running = false;
-    util = std::make_shared<TestAutowareBridgeUtil>();
-
-    // Create Localization instance.
-    localization = std::make_shared<Localization>(node, util, std::ref(is_task_running));
+    dummy_util = std::make_shared<DummyBridgeUtil>();
+    localization = std::make_shared<TestableLocalization>(node, dummy_util);
   }
   
   void TearDown() override {
@@ -110,41 +113,40 @@ protected:
   }
   
   rclcpp::Node::SharedPtr node;
-  std::shared_ptr<TestAutowareBridgeUtil> util;
+  std::shared_ptr<DummyBridgeUtil> dummy_util;
   std::atomic<bool> is_task_running;
-  std::shared_ptr<Localization> localization;
+  std::shared_ptr<TestableLocalization> localization;
 };
 
-// --- Test Cases --------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Test Cases
 
-// 1. Test the callback for localization quality.
-/* TEST_F(LocalizationTest, LocalizationQualityCallbackTest) {
-  ModeChangeAvailable msg;
-  msg.available = true;
-  localization->localizationQualityCallback(msg);
+// 1. Test Localization Quality Callback.
+TEST_F(LocalizationTest, QualityCallbackTest) {
+  tier4_system_msgs::msg::ModeChangeAvailable quality_msg;
+  quality_msg.available = true;
+  localization->testLocalizationQualityCallback(quality_msg);
   EXPECT_TRUE(localization->getLocalizationQuality());
-  
-  msg.available = false;
-  localization->localizationQualityCallback(msg);
+
+  quality_msg.available = false;
+  localization->testLocalizationQualityCallback(quality_msg);
   EXPECT_FALSE(localization->getLocalizationQuality());
 }
 
-// 2. Test the callback for localization state.
-TEST_F(LocalizationTest, LocalizationStateCallbackTest) {
-  DummyLocalizationInitializationState msg;
-  msg.state = static_cast<int>(LocalizationInitializationState::INITIALIZED);
-  localization->localizationStateCallback(*(reinterpret_cast<const LocalizationInitializationState*>(&msg)));
-  // If no error occurs, the test succeeds.
-  SUCCEED();
+// 2. Test Localization State Callback.
+TEST_F(LocalizationTest, StateCallbackTest) {
+  autoware_adapi_v1_msgs::msg::LocalizationInitializationState state_msg;
+  state_msg.state = autoware_adapi_v1_msgs::msg::LocalizationInitializationState::INITIALIZED;
+  localization->testLocalizationStateCallback(state_msg);
+  SUCCEED();  // No error implies success.
 }
 
-// 3. Test that pubInitPose publishes a message on the expected topic.
+// 3. Test PubInitPose: Verify that a message is published on "/initialpose".
 TEST_F(LocalizationTest, PubInitPoseTest) {
   std::atomic<bool> msg_received{false};
-  
   auto sub = node->create_subscription<geometry_msgs::msg::PoseStamped>(
     "/initialpose", 10,
-    [&](const geometry_msgs::msg::PoseStamped::SharedPtr /*msg) {
+    [&](const geometry_msgs::msg::PoseStamped::SharedPtr) {
       msg_received = true;
     });
   
@@ -152,149 +154,100 @@ TEST_F(LocalizationTest, PubInitPoseTest) {
   init_pose.header.stamp = node->now();
   init_pose.header.frame_id = "map";
   
-  localization->pubInitPose(init_pose);
-  
-  // Process callbacks.
+  localization->testPubInitPose(init_pose);
   rclcpp::spin_some(node);
   EXPECT_TRUE(msg_received);
 }
 
-// 4. Test cancellation: run execute() in a thread and then cancel.
-TEST_F(LocalizationTest, CancellationTest) {
+// 4. Test Execute Success Scenario.
+TEST_F(LocalizationTest, ExecuteSuccessTest) {
+  std::string task_id = "success_task";
   geometry_msgs::msg::PoseStamped init_pose;
   init_pose.header.stamp = node->now();
   init_pose.header.frame_id = "map";
+  
+  // Force conditions for success:
+  // - Set quality to true.
+  // - Set start time in the past to trigger a timeout in LOCALIZATION_CHECK.
+  localization->forceSetLocalizationQuality(true);
+  localization->setLocalizationStartTime(node->now() - rclcpp::Duration::from_seconds(LOC_WAIT_TIMEOUT_S + 1));
+  // Force state to LOCALIZATION_CHECK.
+  localization->forceSetState(LocalizationTaskState::LOCALIZATION_CHECK);
   
   std::thread exec_thread([&]() {
-    localization->execute("cancel_task", init_pose);
+    localization->execute(task_id, init_pose);
   });
-  
-  // Let the execution run briefly.
-  std::this_thread::sleep_for(std::chrono::milliseconds(200));
-  
-  // Request cancellation.
-  localization->cancelRequested();
-  
   exec_thread.join();
   
-  // Verify that updateCancellationStatus was called.
-  bool cancellation_logged = false;
-  {
-    std::lock_guard<std::mutex> lock(util->log_mutex);
-    for (const auto & entry : util->call_log) {
-      if (entry.find("updateCancellationStatus: cancel_task") != std::string::npos) {
-        cancellation_logged = true;
-        break;
-      }
+  bool successLogged = false;
+  for (const auto & entry : dummy_util->call_log) {
+    if (entry.find("updateTaskStatus: " + task_id + " status:SUCCESS") != std::string::npos) {
+      successLogged = true;
+      break;
     }
   }
-  EXPECT_TRUE(cancellation_logged);
-  // Also check that task_running flag is false.
-  EXPECT_FALSE(is_task_running);
+  EXPECT_TRUE(successLogged);
 }
 
-// 5. Test failure scenario: force max retries reached (simulate no state change).
-TEST_F(LocalizationTest, FailureTest) {
+// 5. Test Execute Failure Scenario (max retries exceeded).
+TEST_F(LocalizationTest, ExecuteFailureTest) {
+  std::string task_id = "fail_task";
   geometry_msgs::msg::PoseStamped init_pose;
   init_pose.header.stamp = node->now();
   init_pose.header.frame_id = "map";
   
-  // Do not update state/quality so success never occurs.
-  std::thread exec_thread([&]() {
-    localization->execute("fail_task", init_pose);
-  });
-  
-  exec_thread.join();
-  
-  bool fail_logged = false;
-  {
-    std::lock_guard<std::mutex> lock(util->log_mutex);
-    for (const auto & entry : util->call_log) {
-      if (entry.find("updateFailStatus: fail_task") != std::string::npos) {
-        fail_logged = true;
-        break;
-      }
-    }
-  }
-  EXPECT_TRUE(fail_logged);
-  EXPECT_FALSE(is_task_running);
-}
-
-// 6. Test success scenario: simulate a successful localization.
-// Force the necessary state transitions and quality.
-TEST_F(LocalizationTest, SuccessTest) {
-  geometry_msgs::msg::PoseStamped init_pose;
-  init_pose.header.stamp = node->now();
-  init_pose.header.frame_id = "map";
-  
-  // Simulate state transition to INITIALIZED.
-  DummyLocalizationInitializationState state_msg;
-  state_msg.state = static_cast<int>(LocalizationInitializationState::INITIALIZED);
-  localization->localizationStateCallback(*(reinterpret_cast<const LocalizationInitializationState*>(&state_msg)));
-  
-  // Simulate good localization quality.
-  ModeChangeAvailable quality_msg;
-  quality_msg.available = true;
-  localization->localizationQualityCallback(quality_msg);
-  
-  // Force start time in the past to trigger the LOCALIZATION_CHECK timeout.
-  localization->localization_start_time_ = node->now() - rclcpp::Duration::from_seconds(LOC_WAIT_TIMEOUT_S + 1);
+  // Force failure: set quality to false so that success is never reached.
+  localization->forceSetLocalizationQuality(false);
+  // Set start time in the past.
+  localization->setLocalizationStartTime(node->now() - rclcpp::Duration::from_seconds(LOC_WAIT_TIMEOUT_S + 1));
+  localization->forceSetState(LocalizationTaskState::LOCALIZATION_CHECK);
   
   std::thread exec_thread([&]() {
-    localization->execute("success_task", init_pose);
+    localization->execute(task_id, init_pose);
   });
-  
   exec_thread.join();
   
-  bool success_logged = false;
-  {
-    std::lock_guard<std::mutex> lock(util->log_mutex);
-    for (const auto & entry : util->call_log) {
-      if (entry.find("updateSuccessStatus: success_task") != std::string::npos) {
-        success_logged = true;
-        break;
-      }
+  bool failedLogged = false;
+  for (const auto & entry : dummy_util->call_log) {
+    if (entry.find("updateTaskStatus: " + task_id + " status:FAILED") != std::string::npos &&
+        entry.find("Max retries elapsed") != std::string::npos) {
+      failedLogged = true;
+      break;
     }
   }
-  EXPECT_TRUE(success_logged);
-  EXPECT_FALSE(is_task_running);
+  EXPECT_TRUE(failedLogged);
 }
 
-// 7. (Optional) Test for unexpected state: publish an invalid state value and ensure no success.
-TEST_F(LocalizationTest, UnexpectedStateTest) {
+// 6. Test Execute Cancellation Scenario.
+TEST_F(LocalizationTest, ExecuteCancelTest) {
+  std::string task_id = "cancel_task";
   geometry_msgs::msg::PoseStamped init_pose;
   init_pose.header.stamp = node->now();
   init_pose.header.frame_id = "map";
   
-  std::string task_id = "unexpected_task";
+  // Start execute() in a separate thread.
   std::thread exec_thread([&]() {
     localization->execute(task_id, init_pose);
   });
   
-  // Wait a bit, then publish an invalid state.
-  std::this_thread::sleep_for(std::chrono::milliseconds(200));
-  DummyLocalizationInitializationState invalid_state;
-  invalid_state.state = 99; // Invalid state
-  localization->localizationStateCallback(*(reinterpret_cast<const LocalizationInitializationState*>(&invalid_state)));
-  
-  // Let it run for a short period.
-  std::this_thread::sleep_for(std::chrono::milliseconds(500));
-  
-  // Since state is invalid, expect that neither success nor failure update is called,
-  // but eventually the max retry condition will force a failure.
+  std::this_thread::sleep_for(200ms);
+  localization->cancel();
   exec_thread.join();
   
-  bool fail_logged = false;
-  {
-    std::lock_guard<std::mutex> lock(util->log_mutex);
-    for (const auto & entry : util->call_log) {
-      if (entry.find("updateFailStatus: unexpected_task") != std::string::npos) {
-        fail_logged = true;
-        break;
-      }
+  bool cancelLogged = false;
+  for (const auto & entry : dummy_util->call_log) {
+    if (entry.find("updateTaskStatus: " + task_id + " status:CANCELLED") != std::string::npos) {
+      cancelLogged = true;
+      break;
     }
   }
-  EXPECT_TRUE(fail_logged);
-  EXPECT_FALSE(is_task_running);
+  EXPECT_TRUE(cancelLogged);
 }
- */
+
+int main(int argc, char ** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  rclcpp::init(argc, argv);
+  int ret = RUN_ALL_TESTS();
+  rclcpp::shutdown();
+  return ret;
+}

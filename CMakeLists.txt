@@ -18,7 +18,6 @@ find_package(autoware_auto_msgs REQUIRED)
 find_package(autoware_auto_system_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
-
 # Service files
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetTaskStatus.srv"
@@ -33,11 +32,11 @@ add_library(autoware_bridge_lib
   src/autonomous_driving.cpp
 )
 
-  # Use target-specific include directories
-  target_include_directories(autoware_bridge_lib PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
-  )
+# Use target-specific include directories
+target_include_directories(autoware_bridge_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
+)
 
 ament_target_dependencies(autoware_bridge_lib
   rclcpp
@@ -86,11 +85,10 @@ install(DIRECTORY launch/
 )
 
 if(BUILD_TESTING)
-  #find_package(ament_cmake_gtest REQUIRED)
-  ##find_package(ament_lint_auto REQUIRED)
-  ##ament_lint_auto_find_test_dependencies()
+  # Create a single test executable that compiles both test files.
   ament_add_gtest(test_${PROJECT_NAME}
     test/test_autoware_bridge_util.cpp
+    test/test_localization.cpp
   )
   if(TARGET test_${PROJECT_NAME})
     ament_target_dependencies(test_${PROJECT_NAME}

@@ -46,20 +46,11 @@ private:
   std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;
   std::atomic<bool> is_cancel_requested_;
 
-  LocalizationTaskState state_;
-  uint16_t localization_state_;
-  bool localization_quality_;
-  rclcpp::Time localization_start_time_;
-
   std::mutex task_mutex_;
 
   // Helper methods
   // void sendCmdGate();
-  void pubInitPose(const geometry_msgs::msg::PoseStamped &init_pose);
-
-  // callbacks
-  void localizationQualityCallback(const ModeChangeAvailable &msg);
-  void localizationStateCallback(const LocalizationInitializationState &msg);
+  
 
   // Publisher
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr init_pose_publisher_;
@@ -67,6 +58,18 @@ private:
   // Subscriber
   rclcpp::Subscription<LocalizationInitializationState>::SharedPtr localization_state_subscriber_;
   rclcpp::Subscription<ModeChangeAvailable>::SharedPtr localization_quality_subscriber_;
+
+protected:
+  rclcpp::Time localization_start_time_;
+  bool localization_quality_;
+  LocalizationTaskState state_;
+  LocalizationInitializationState localization_state_;
+ 
+  void pubInitPose(const geometry_msgs::msg::PoseStamped &init_pose);
+
+  // callbacks
+  void localizationQualityCallback(const ModeChangeAvailable &msg);
+  void localizationStateCallback(const LocalizationInitializationState &msg);
 };
 
 #endif // LOCALIZATION_HPP
