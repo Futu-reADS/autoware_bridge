@@ -47,7 +47,7 @@ void AutonomousDriving::execute(
       // CANCEL
       autoware_bridge_util_->updateTaskStatus(task_id, "CANCELLED");
       RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
-      return;
+      break;
     }
 
     if (timeout) {
