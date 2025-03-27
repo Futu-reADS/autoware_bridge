@@ -29,6 +29,8 @@ void RoutePlanning::execute(
   // Maximum number of route planning retries
   int retry_counter = 0;
   bool success = false;
+  bool failed = false;
+  bool timeout = false;
 
   while (true) {
     std::lock_guard<std::mutex> lock(task_mutex_);
@@ -40,10 +42,18 @@ void RoutePlanning::execute(
       return;
     }
 
-    if (retry_counter >= MAX_ROUTE_PLANNING_RETRIES) {
+    if (timeout) {
+      // TIMEOUT
+      autoware_bridge_util_->updateTaskStatus(task_id, "TIMEOUT");
+      RCLCPP_ERROR(node_->get_logger(), "Route planning task %s timeout.", task_id.c_str());
+      break;
+    }
+
+    if (failed) {
       // FAILURE
-      autoware_bridge_util_->updateTaskStatus(task_id, "FAILED", "Max retries elapsed");
-      RCLCPP_ERROR(node_->get_logger(), "Route planning task %s failed.", task_id.c_str());
+      autoware_bridge_util_->updateTaskStatus(task_id, "FAILED");
+      RCLCPP_ERROR(
+        node_->get_logger(), "Route planning task %s failed as already arrived.", task_id.c_str());
       break;
     }
 
@@ -76,12 +86,16 @@ void RoutePlanning::execute(
         if (retry_counter == 1) {
           autoware_bridge_util_->updateTaskStatus(task_id, "RETRYING");
         }
-        retry_counter++;
-        autoware_bridge_util_->updateTaskRetries(task_id, retry_counter);
 
-        publishTargetPose(goal_pose);
-        route_planning_start_time_ = node_->get_clock()->now();
-        state_ = RoutePlanningTaskState::WAIT_FOR_AUTOWARE_ROUTE_PLANNING;
+        if (retry_counter <= MAX_ROUTE_PLANNING_RETRIES) {
+          publishTargetPose(goal_pose);
+          route_planning_start_time_ = node_->get_clock()->now();
+          state_ = RoutePlanningTaskState::WAIT_FOR_AUTOWARE_ROUTE_PLANNING;
+          autoware_bridge_util_->updateTaskRetries(task_id, retry_counter);
+          retry_counter++;
+        } else {
+          timeout = true;
+        }
         break;
 
       case RoutePlanningTaskState::WAIT_FOR_AUTOWARE_ROUTE_PLANNING:
@@ -109,8 +123,7 @@ void RoutePlanning::execute(
             break;
 
           case RouteState::ARRIVED:
-            autoware_bridge_util_->updateTaskStatus(task_id, "FAILED", "Autoware in ARRIVED State");
-            RCLCPP_WARN(node_->get_logger(), "Autoware in ARRIVED State");
+            failed = true;
             break;
 
           case RouteState::CHANGING:

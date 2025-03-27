@@ -14,34 +14,19 @@
 
 enum class TaskRequestType { STATUS, REASON, RETRIES, TOTAL_RETRIES, CANCEL_STATUS, CANCEL_REASON };
 
-struct TaskCancellationInfo
-{
-  TaskCancellationInfo()
-  {
-    status = EMPTY_STRING;
-    reason = EMPTY_STRING;
-  }
-
-  std::string status;
-  std::string reason;
-};
-
 struct TaskInfo
 {
   TaskInfo(int max_retries)
   {
     status = "PENDING";
-    reason = EMPTY_STRING;
     retry_number = 0;
     total_retries = max_retries;
   }
 
-  std::string
-    status;  // rejected -> pending -> running -> retrying -> success | failed -> cancelled
-  std::string reason;  // Failure reason or rejection explanation
+  std::string status;
   int32_t retry_number;
   int32_t total_retries;
-  TaskCancellationInfo cancel_info;
+  std::string cancel_status;
 };
 
 class AutowareBridgeUtil
@@ -53,11 +38,8 @@ public:
     int number = 0);
   void updateTaskId(const std::string & task_id);
 
-  void updateTaskStatus(
-    const std::string & task_id, const std::string & status, std::string reason = "");
+  void updateTaskStatus(const std::string & task_id, const std::string & status);
   void updateTaskRetries(const std::string & task_id, int retryNumber);
-  void updateCancellationStatus(
-    const std::string & task_id, const std::string & status, std::string reason = "");
 
   bool isTaskActive(const std::string & task_id);
   std::string getActiveTaskId();

@@ -2,6 +2,9 @@
 <launch>
     <!-- Declare launch arguments -->
     <arg name="localization_topic" default="/ftd_master/localization_request" description="Localization request topic"/>
+    <arg name="route_planning_topic" default="/ftd_master/route_planning_request" description="Localization request topic"/>
+    <arg name="autonomous_driving_topic" default="/ftd_master/autonomous_driving_request" description="Localization request topic"/>
+    <arg name="cancel_task_topic" default="/ftd_master/cancel_task" description="Localization request topic"/>
 
     <node
         pkg="autoware_bridge"

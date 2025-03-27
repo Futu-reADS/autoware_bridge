@@ -18,9 +18,6 @@ void AutowareBridgeUtil::updateTask(
       case TaskRequestType::STATUS:
         task_info.status = value;
         break;
-      case TaskRequestType::REASON:
-        task_info.reason = value;
-        break;
       case TaskRequestType::RETRIES:
         task_info.retry_number = number;
         break;
@@ -28,10 +25,7 @@ void AutowareBridgeUtil::updateTask(
         task_info.total_retries = number;
         break;
       case TaskRequestType::CANCEL_STATUS:
-        task_info.cancel_info.status = value;
-        break;
-      case TaskRequestType::CANCEL_REASON:
-        task_info.cancel_info.reason = value;
+        task_info.cancel_status = value;
         break;
       default:
         RCLCPP_WARN(rclcpp::get_logger("autoware_bridge_util"), "Request type is not valid.");
@@ -50,30 +44,22 @@ void AutowareBridgeUtil::updateTaskId(const std::string & task_id)
   task_map_.emplace(task_id, TaskInfo(3));
 }
 
-void AutowareBridgeUtil::updateTaskStatus(
-  const std::string & task_id, const std::string & status, std::string reason)
+void AutowareBridgeUtil::updateTaskStatus(const std::string & task_id, const std::string & status)
 {
   updateTask(task_id, TaskRequestType::STATUS, status);
-  updateTask(task_id, TaskRequestType::REASON, reason);
 
-  if (status == "FAILED" || status == "SUCCESS") {
-    updateCancellationStatus(task_id, "REJECTED", status);
+  if (status == "FAILED" || status == "TIMEOUT") {
+    updateTask(task_id, TaskRequestType::CANCEL_STATUS, "FAILED_DUE_TO_TASK_FAILURE");
+  } else if (status == "SUCCESS") {
+    updateTask(task_id, TaskRequestType::CANCEL_STATUS, "FAILED_DUE_TO_TASK_SUCCESS");
   } else if (status == "CANCELLED") {
-    updateCancellationStatus(task_id, status, reason);
+    updateTask(task_id, TaskRequestType::CANCEL_STATUS, "CANCELLED");
   }
 }
 
 void AutowareBridgeUtil::updateTaskRetries(const std::string & task_id, int retryNumber)
 {
   updateTask(task_id, TaskRequestType::RETRIES, "", retryNumber);
-}
-
-void AutowareBridgeUtil::updateCancellationStatus(
-  const std::string & task_id, const std::string & status, std::string reason)
-{
-  TaskInfo task_cancellation_status = getTaskStatus(task_id);
-  updateTask(task_id, TaskRequestType::CANCEL_STATUS, status);
-  updateTask(task_id, TaskRequestType::CANCEL_REASON, reason);
 }
 
 bool AutowareBridgeUtil::isTaskActive(const std::string & task_id)
@@ -146,14 +132,12 @@ void AutowareBridgeUtil::handleStatusRequestSrvc(
 
     RCLCPP_INFO(
       rclcpp::get_logger("autoware_bridge_util"),
-      "[handleStatusRequestSrvc] Task status: %s, Retry number: %d, Total retries: %d, Reason: %s",
-      task_info.status.c_str(), task_info.retry_number, task_info.total_retries,
-      task_info.reason.c_str());
+      "[handleStatusRequestSrvc] Task status: %s, Retry number: %d, Total retries: %d",
+      task_info.status.c_str(), task_info.retry_number, task_info.total_retries);
 
     response->status = task_info.status;
     response->retry_number = task_info.retry_number;
     response->total_retries = task_info.total_retries;
-    response->reason = task_info.reason;
   } else {
     RCLCPP_WARN(
       rclcpp::get_logger("autoware_bridge_util"),
@@ -161,14 +145,13 @@ void AutowareBridgeUtil::handleStatusRequestSrvc(
       request->task_id.c_str());
 
     response->status = "REJECTED";
-    response->reason = "Requested task_id is not the last active one";
     response->retry_number = 0;
     response->total_retries = 0;
 
     RCLCPP_INFO(
       rclcpp::get_logger("autoware_bridge_util"),
-      "[handleStatusRequestSrvc] Response: status=REJECTED, reason=%s, retry_number=%d, "
+      "[handleStatusRequestSrvc] Response: status=REJECTED, retry_number=%d, "
       "total_retries=%d",
-      response->reason.c_str(), response->retry_number, response->total_retries);
+      response->retry_number, response->total_retries);
   }
 }

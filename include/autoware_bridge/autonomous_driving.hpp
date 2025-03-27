@@ -3,7 +3,9 @@
 
 #include "autoware_bridge/autoware_bridge_util.hpp"
 #include "base_task.hpp"
+
 #include <rclcpp/rclcpp.hpp>
+
 #include <autoware_adapi_v1_msgs/msg/motion_state.hpp>
 #include <autoware_adapi_v1_msgs/msg/operation_mode_state.hpp>
 #include <autoware_adapi_v1_msgs/msg/route_state.hpp>
@@ -13,26 +15,20 @@
 #include <memory>
 #include <mutex>
 
-enum class AutonomousDrivingTaskState
-{
-  ENGAGE_AUTO_DRIVE,
-  WAIT_AUTO_DRIVE_READY,
-  DRIVING
-};
+enum class AutonomousDrivingTaskState { ENGAGE_AUTO_DRIVE, WAIT_AUTO_DRIVE_READY, DRIVING };
 
 const double DRIVE_WAIT_TIMEOUT_S = 10.0;
-const int MAX_DRIVE_RETRIES = 5;
-const double MAX_EGO_HALT_TIME = 60.0; // Halting time in seconds
+const int MAX_DRIVE_RETRIES = 2;
+const double MAX_EGO_HALT_TIME = 60.0;  // Halting time in seconds
 
 class AutonomousDriving : public BaseTask
 {
 public:
   AutonomousDriving(
-      rclcpp::Node::SharedPtr node,
-      std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util);
-  void execute(const std::string &task_id, const geometry_msgs::msg::PoseStamped &pose)
-      override;           // Executes Driving
-  void cancel() override; // Requests task cancellation
+    rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util);
+  void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
+    override;              // Executes Driving
+  void cancel() override;  // Requests task cancellation
 
   // Alias for message types
   using RouteState = autoware_adapi_v1_msgs::msg::RouteState;
@@ -70,4 +66,4 @@ private:
   void engageAutoDrive();
 };
 
-#endif // AUTONOMOUS_DRIVING_HPP
+#endif  // AUTONOMOUS_DRIVING_HPP
