@@ -42,6 +42,7 @@ void AutowareBridgeUtil::updateTaskId(const std::string & task_id)
 {
   task_map_.clear();
   task_map_.emplace(task_id, TaskInfo(3));
+  RCLCPP_INFO(rclcpp::get_logger("autoware_bridge_util"), "Active task set to: %s", task_id.c_str());
 }
 
 void AutowareBridgeUtil::updateTaskStatus(const std::string & task_id, const std::string & status)

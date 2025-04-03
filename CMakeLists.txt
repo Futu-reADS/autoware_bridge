@@ -90,8 +90,9 @@ if(BUILD_TESTING)
   #find_package(ament_cmake_gtest REQUIRED)
   ##find_package(ament_lint_auto REQUIRED)
   ##ament_lint_auto_find_test_dependencies()
-  ament_add_gtest(test_${PROJECT_NAME}
-    test/test_autoware_bridge_util.cpp
+  ament_add_gmock(test_${PROJECT_NAME}
+    #test/test_autoware_bridge_util.cpp
+    test/test_localization.cpp
   )
   if(TARGET test_${PROJECT_NAME})
     ament_target_dependencies(test_${PROJECT_NAME}
