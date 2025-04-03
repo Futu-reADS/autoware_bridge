@@ -18,7 +18,6 @@ find_package(autoware_auto_msgs REQUIRED)
 find_package(autoware_auto_system_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
-
 # Service files
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/GetTaskStatus.srv"
@@ -33,11 +32,11 @@ add_library(autoware_bridge_lib
   src/autonomous_driving.cpp
 )
 
-  # Use target-specific include directories
-  target_include_directories(autoware_bridge_lib PUBLIC
-      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-      $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
-  )
+# Use target-specific include directories
+target_include_directories(autoware_bridge_lib PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include/${PROJECT_NAME}>
+)
 
 ament_target_dependencies(autoware_bridge_lib
   rclcpp
