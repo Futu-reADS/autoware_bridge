@@ -89,9 +89,13 @@ install(DIRECTORY
 if(BUILD_TESTING)
   #find_package(ament_cmake_gtest REQUIRED)
   ##find_package(ament_lint_auto REQUIRED)
-  ##ament_lint_auto_find_test_dependencies()
-  ament_add_gtest(test_${PROJECT_NAME}
+  #ament_lint_auto_find_test_dependencies()
+  #ament_add_gtest(test_${PROJECT_NAME}
+  ament_add_gmock(test_${PROJECT_NAME}
     test/test_autoware_bridge_util.cpp
+    #test/test_localization.cpp
+    #test/test_route_planning.cpp
+    #test/test_autonomous_driving.cpp
   )
   if(TARGET test_${PROJECT_NAME})
     ament_target_dependencies(test_${PROJECT_NAME}
