@@ -46,21 +46,21 @@ void AutonomousDriving::execute(
     if (is_cancel_requested_) {
       // CANCEL
       autoware_bridge_util_->updateTaskStatus(task_id, "CANCELLED");
-      RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
+      RCLCPP_INFO(node_->get_logger(), "Driving task %s cancelled.", task_id.c_str());
       break;
     }
 
     if (timeout) {
       // TIMEOUT
       autoware_bridge_util_->updateTaskStatus(task_id, "TIMEOUT");
-      RCLCPP_ERROR(node_->get_logger(), "Localization task %s timeout.", task_id.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "Driving task %s timeout.", task_id.c_str());
       break;
     }
 
     if (success) {
       // SUCCESS
       autoware_bridge_util_->updateTaskStatus(task_id, "SUCCESS");
-      RCLCPP_INFO(node_->get_logger(), "Localization task %s successful.", task_id.c_str());
+      RCLCPP_INFO(node_->get_logger(), "Driving task %s successful.", task_id.c_str());
       break;
     }
 

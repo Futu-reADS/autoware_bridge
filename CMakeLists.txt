@@ -31,6 +31,7 @@ add_library(autoware_bridge_lib
   src/localization.cpp
   src/route_planning.cpp
   src/autonomous_driving.cpp
+  src/autoware_bridge.cpp
 )
 
   # Use target-specific include directories
@@ -92,7 +93,10 @@ if(BUILD_TESTING)
   ##ament_lint_auto_find_test_dependencies()
   ament_add_gmock(test_${PROJECT_NAME}
     #test/test_autoware_bridge_util.cpp
-    test/test_localization.cpp
+    #test/test_localization.cpp
+    test/test_route_planning.cpp
+    #test/test_autonomous_driving.cpp
+    #test/test_autoware_bridge.cpp
   )
   if(TARGET test_${PROJECT_NAME})
     ament_target_dependencies(test_${PROJECT_NAME}

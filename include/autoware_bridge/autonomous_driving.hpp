@@ -63,7 +63,7 @@ private:
   void operationModeStateCallback(const OperationModeState msg);
 
   // Helper methods
-  void engageAutoDrive();
+  virtual void engageAutoDrive();
 };
 
 #endif  // AUTONOMOUS_DRIVING_HPP
