@@ -10,6 +10,8 @@
 #include <autoware_adapi_v1_msgs/msg/operation_mode_state.hpp>
 #include <autoware_adapi_v1_msgs/msg/route_state.hpp>
 #include <autoware_adapi_v1_msgs/srv/change_operation_mode.hpp>
+#include "autoware_adapi_v1_msgs/srv/clear_route.hpp"
+
 
 #include <atomic>
 #include <memory>
@@ -26,7 +28,7 @@ class AutonomousDriving : public BaseTask
 public:
   AutonomousDriving(
     rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util);
-  void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
+  void execute(const std::string & task_id, const TaskInput& input)
     override;              // Executes Driving
   void cancel() override;  // Requests task cancellation
 
@@ -35,6 +37,7 @@ public:
   using MotionState = autoware_adapi_v1_msgs::msg::MotionState;
   using OperationModeState = autoware_adapi_v1_msgs::msg::OperationModeState;
   using ChangeOperationMode = autoware_adapi_v1_msgs::srv::ChangeOperationMode;
+  using ClearRoute = autoware_adapi_v1_msgs::srv::ClearRoute;
 
 private:
   rclcpp::Node::SharedPtr node_;
@@ -56,6 +59,7 @@ private:
 
   // Client
   rclcpp::Client<ChangeOperationMode>::SharedPtr auto_drive_engage_client;
+  rclcpp::Client<ClearRoute>::SharedPtr clear_route_client;
 
   // callbacks
   void vehicleMotionStateCallback(const MotionState msg);
@@ -64,6 +68,7 @@ private:
 
   // Helper methods
   virtual void engageAutoDrive();
+  void cancelCurrentRoute();
 };
 
 #endif  // AUTONOMOUS_DRIVING_HPP

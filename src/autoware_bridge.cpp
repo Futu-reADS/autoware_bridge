@@ -9,6 +9,7 @@ using namespace std::chrono_literals;
 AutowareBridgeNode::AutowareBridgeNode(std::shared_ptr<AutowareBridgeUtil> util)
 : Node("autoware_bridge_node"), autoware_bridge_util_(util), is_cancel_requested_(false)
 {
+  RCLCPP_INFO(this->get_logger(), "AutowareBridgeNode constructed at %p", static_cast<void*>(this));
   this->declare_parameter("localization_topic", "/ftd_master/localization_request");
   this->declare_parameter("route_planning_topic", "/ftd_master/route_planning_request");
   this->declare_parameter("autonomous_driving_topic", "/ftd_master/autonomous_driving_request");
@@ -31,7 +32,8 @@ AutowareBridgeNode::AutowareBridgeNode(std::shared_ptr<AutowareBridgeUtil> util)
       route_planning_topic, 10,
       std::bind(&AutowareBridgeNode::routePlanningRequestCallback, this, std::placeholders::_1));
 
-  autonomous_driving_request_subscription_ = this->create_subscription<std_msgs::msg::String>(
+  autonomous_driving_request_subscription_ = 
+    this->create_subscription<std_msgs::msg::String>(
     autonomous_driving_topic, 10,
     std::bind(&AutowareBridgeNode::autonomousDrivingRequestCallback, this, std::placeholders::_1));
 
@@ -69,6 +71,9 @@ AutowareBridgeNode::AutowareBridgeNode(std::shared_ptr<AutowareBridgeUtil> util)
 AutowareBridgeNode::~AutowareBridgeNode()
 {
   // Optionally: join or signal threads if you decide to track them instead of detaching.
+  //RCLCPP_INFO(this->get_logger(), "AutowareBridgeNode destructed at %p", this);
+  RCLCPP_INFO(this->get_logger(), "AutowareBridgeNode destructed at %p", static_cast<void*>(this));
+
 }
 
 // Task Handling Callbacks
@@ -78,11 +83,20 @@ void AutowareBridgeNode::localizationRequestCallback(
   if (isTaskRejected("localization")) {
     return;
   }
-  RCLCPP_INFO(this->get_logger(), "LOCALIZATION CALLBACK");
-  auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  RCLCPP_INFO(this->get_logger(), "LOCALIZATION CALLBACK , this pointer %p", static_cast<void*>(this));
+
+  //auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  RCLCPP_INFO(this->get_logger(), "Before shared_from_this()");
+  //auto node_ptr = this->shared_from_this();
+  //auto node_ptr = std::dynamic_pointer_cast<AutowareBridgeNode>(this->shared_from_this());
+  auto node_ptr = std::dynamic_pointer_cast<AutowareBridgeNode>(shared_from_this());
   auto localization_task = std::make_shared<Localization>(node_ptr, autoware_bridge_util_);
 
-  startTaskExecution(msg->task_id.data, msg->pose, localization_task);
+  TaskInput input;
+  input.data = msg->pose; 
+
+  //startTaskExecution(msg->task_id.data, msg->pose, localization_task);
+  startTaskExecution(msg->task_id.data, input, localization_task);
 }
 
 void AutowareBridgeNode::routePlanningRequestCallback(
@@ -92,9 +106,12 @@ void AutowareBridgeNode::routePlanningRequestCallback(
     return;
   }
   RCLCPP_INFO(this->get_logger(), "route_planning CALLBACK");
-  auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  //auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  auto node_ptr = std::dynamic_pointer_cast<AutowareBridgeNode>(this->shared_from_this());
   auto route_planning_task = std::make_shared<RoutePlanning>(node_ptr, autoware_bridge_util_);
-  startTaskExecution(msg->task_id.data, msg->pose, route_planning_task);
+  TaskInput input;
+  input.data = msg->pose;
+  startTaskExecution(msg->task_id.data, input, route_planning_task);
 }
 
 void AutowareBridgeNode::autonomousDrivingRequestCallback(
@@ -104,11 +121,15 @@ void AutowareBridgeNode::autonomousDrivingRequestCallback(
     return;
   }
   RCLCPP_INFO(this->get_logger(), "autonomous_driving CALLBACK");
-  geometry_msgs::msg::PoseStamped dummy_pose_stamped;
-  auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  
+  //auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  auto node_ptr = std::dynamic_pointer_cast<AutowareBridgeNode>(this->shared_from_this());
   auto autonomous_driving_task =
     std::make_shared<AutonomousDriving>(node_ptr, autoware_bridge_util_);
-  startTaskExecution(msg->data, dummy_pose_stamped, autonomous_driving_task);
+  geometry_msgs::msg::PoseStamped dummy_pose_stamped;
+  TaskInput input;
+  input.data = dummy_pose_stamped;
+  startTaskExecution(msg->data, input, autonomous_driving_task);
 }
 
 bool AutowareBridgeNode::isTaskRejected(const std::string & task_name)
@@ -126,22 +147,22 @@ bool AutowareBridgeNode::isTaskRejected(const std::string & task_name)
 }
 
 void AutowareBridgeNode::startTaskExecution(
-  const std::string & requested_task_id, const geometry_msgs::msg::PoseStamped & pose_stamped,
+  const std::string & requested_task_id, const TaskInput & input,
   std::shared_ptr<BaseTask> task)
 {
   RCLCPP_INFO(this->get_logger(), "Start task_id: %s", requested_task_id.c_str());
   autoware_bridge_util_->updateTaskId(requested_task_id);
   autoware_bridge_util_->setActiveTaskPtr(task);
-  startThreadExecution(requested_task_id, pose_stamped);
+  startThreadExecution(requested_task_id, input);
 }
 
 void AutowareBridgeNode::startThreadExecution(
-  const std::string & requested_task_id, const geometry_msgs::msg::PoseStamped & pose_stamped)
+  const std::string & requested_task_id, const TaskInput & input)
 {
   std::shared_ptr<BaseTask> active_task_ptr = autoware_bridge_util_->getActiveTaskPtr();
   if (active_task_ptr) {
-    std::thread([this, active_task_ptr, requested_task_id, pose_stamped]() {
-      active_task_ptr->execute(requested_task_id, pose_stamped);
+    std::thread([this, active_task_ptr, requested_task_id, input]() {
+      active_task_ptr->execute(requested_task_id, input);
 
       std::lock_guard<std::mutex> lock(task_mutex_);
       publishTaskResponse(requested_task_id);

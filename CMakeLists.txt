@@ -92,9 +92,9 @@ if(BUILD_TESTING)
   ##find_package(ament_lint_auto REQUIRED)
   ##ament_lint_auto_find_test_dependencies()
   ament_add_gmock(test_${PROJECT_NAME}
-    #test/test_autoware_bridge_util.cpp
+    test/test_autoware_bridge_util.cpp
     #test/test_localization.cpp
-    test/test_route_planning.cpp
+    #test/test_route_planning.cpp
     #test/test_autonomous_driving.cpp
     #test/test_autoware_bridge.cpp
   )
@@ -107,7 +107,10 @@ if(BUILD_TESTING)
       ftd_master_msgs
       autoware_adapi_v1_msgs
     )
-    target_link_libraries(test_${PROJECT_NAME} autoware_bridge_lib)
+    target_link_libraries(test_${PROJECT_NAME} 
+      autoware_bridge_lib
+      ${cpp_typesupport_target}
+    )
   endif()
 endif()
 

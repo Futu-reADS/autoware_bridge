@@ -19,6 +19,8 @@ AutonomousDriving::AutonomousDriving(
   // Initialize autonomous client
   auto_drive_engage_client = node_->create_client<autoware_adapi_v1_msgs::srv::ChangeOperationMode>(
     "/api/operation_mode/change_to_autonomous");
+  clear_route_client =node_->create_client<autoware_adapi_v1_msgs::srv::ClearRoute>("/api/routing/clear_route");
+  // Initialize subscribers
   operation_mode_state_sub_ = node_->create_subscription<OperationModeState>(
     "/api/operation_mode/state", 10,
     std::bind(&AutonomousDriving::operationModeStateCallback, this, std::placeholders::_1));
@@ -31,7 +33,7 @@ AutonomousDriving::AutonomousDriving(
 }
 
 void AutonomousDriving::execute(
-  const std::string & task_id, const geometry_msgs::msg::PoseStamped & /*pose*/)
+  const std::string & task_id, const TaskInput & input)
 {
   autoware_bridge_util_->updateTaskStatus(task_id, "RUNNING");
 
@@ -40,6 +42,11 @@ void AutonomousDriving::execute(
   bool success = false;
   bool timeout = false;
 
+  if (auto pose = std::get_if<geometry_msgs::msg::PoseStamped>(&input.data)) {
+    RCLCPP_INFO(node_->get_logger(), "Received pose for autonomous driving task (ignored).");
+    // Optional: do something like log or visualize pose
+  }
+  
   while (true) {
     std::lock_guard<std::mutex> lock(task_mutex_);
 
@@ -161,4 +168,20 @@ void AutonomousDriving::vehicleMotionStateCallback(const MotionState msg)
 void AutonomousDriving::routeStateCallback(const RouteState msg)
 {
   route_state_ = msg.state;
+}
+
+void AutonomousDriving::cancelCurrentRoute()
+{
+  while (!clear_route_client->wait_for_service(1s)) {
+    if (!rclcpp::ok()) {
+      RCLCPP_ERROR(
+        node_->get_logger(), "Interrupted while waiting for clear_route service. Exiting.");
+      return;
+    }
+    RCLCPP_INFO(node_->get_logger(), "clear_route service not available, waiting again...");
+  }
+  auto request = std::make_shared<ClearRoute::Request>();
+
+  auto future_result = clear_route_client->async_send_request(request);
+
 }

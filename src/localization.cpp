@@ -3,8 +3,9 @@
 #include <chrono>
 
 using namespace std::chrono_literals;
+
 Localization::Localization(
-  rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util)
+  std::shared_ptr<rclcpp::Node> node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util)
 : node_(node),
   autoware_bridge_util_(autoware_bridge_util),
   is_cancel_requested_(false),
@@ -13,8 +14,10 @@ Localization::Localization(
   localization_quality_(false),
   localization_start_time_(rclcpp::Time(0))
 {
-  init_pose_publisher_ =
-    node_->create_publisher<geometry_msgs::msg::PoseStamped>("/initialpose", 10);
+  /* init_pose_publisher_ =
+    node_->create_publisher<geometry_msgs::msg::PoseStamped>("/initialpose", 10); */
+
+  init_pose_publisher_ = node_->create_publisher<PoseWithCovarianceStamped>("/initialpose", 10);
 
   localization_state_subscriber_ = node_->create_subscription<LocalizationInitializationState>(
     "/api/localization/initialization_state", 10,
@@ -26,8 +29,7 @@ Localization::Localization(
     std::bind(&Localization::localizationQualityCallback, this, std::placeholders::_1));
 }
 
-void Localization::execute(
-  const std::string & task_id, const geometry_msgs::msg::PoseStamped & init_pose)
+void Localization::execute(const std::string & task_id, const TaskInput& input)
 {
   autoware_bridge_util_->updateTaskStatus(task_id, "RUNNING");
   // SET FOR MAX_RETRIES
@@ -51,6 +53,7 @@ void Localization::execute(
       // TIMEOUT
       autoware_bridge_util_->updateTaskStatus(task_id, "TIMEOUT");
       RCLCPP_ERROR(node_->get_logger(), "Localization task %s timeout.", task_id.c_str());
+      std::cout << "TIMEOUT: "<< std::endl;
       break;
     }
 
@@ -68,15 +71,28 @@ void Localization::execute(
         if (retry_counter == 1) {
           autoware_bridge_util_->updateTaskStatus(task_id, "RETRYING");
         }
-
+        RCLCPP_INFO(node_->get_logger(), "Retrying initialization, attempt %d", retry_counter);
+        std::cout << "INITIALIZATION1: "<< std::endl;
         if (retry_counter <= MAX_INIT_RETRIES) {
-          pubInitPose(init_pose);
+          // Use input as pose if available
+          if (auto pose = std::get_if<geometry_msgs::msg::PoseWithCovarianceStamped
+            
+            >(&input.data)) {
+            pubInitPose(*pose);  // Use the pose directly
+          } else {
+            RCLCPP_ERROR(node_->get_logger(), "Localization received incorrect input type.");
+            timeout = true;  // Terminate on error
+            break;
+          }
+
           std::this_thread::sleep_for(500ms);
           state_ = LocalizationTaskState::LOCALIZATION;
           autoware_bridge_util_->updateTaskRetries(task_id, retry_counter);
           retry_counter++;
+          std::cout << "INITIALIZATION2: "<< std::endl;
         } else {
           timeout = true;
+          std::cout << "INITIALIZATION3: "<< std::endl;
         }
 
         break;
@@ -91,9 +107,12 @@ void Localization::execute(
             localization_start_time_ = node_->get_clock()->now();
             state_ = LocalizationTaskState::LOCALIZATION_CHECK;
             break;
+
           default:
-            RCLCPP_INFO(node_->get_logger(), "Localization state: %d", localization_state_);
-            // This may lead to busy loop , is there any other thing which we can do here?
+            RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 1000, 
+            "Localization state avinash: %d", static_cast<int>(localization_state_));
+
+            // This may lead to busy loop, is there any other thing which we can do here?
             break;
         }
         break;
@@ -104,7 +123,7 @@ void Localization::execute(
           if (localization_quality_) {
             success = true;
           } else {
-            RCLCPP_INFO(node_->get_logger(), "Localisation quality is poor, retrying localization");
+            RCLCPP_INFO(node_->get_logger(), "Localization quality is poor, retrying localization");
             state_ = LocalizationTaskState::INITIALIZATION;
           }
         } else {
@@ -119,6 +138,7 @@ void Localization::execute(
 
   // std::this_thread::sleep_for(100ms);
 }
+
 void Localization::cancel()
 {
   std::lock_guard<std::mutex> lock(task_mutex_);
@@ -135,16 +155,21 @@ void Localization::localizationQualityCallback(const ModeChangeAvailable & msg)
 void Localization::localizationStateCallback(const LocalizationInitializationState & msg)
 {
   localization_state_ = msg.state;
+  std::cout << "[Callback] Localization state value avi1: " << static_cast<int>(msg.state) << std::endl;
+  RCLCPP_INFO(node_->get_logger(), "Localization state value : %d", static_cast<int>(msg.state));
 }
+
 // check it's usability
 // void Localization::sendCmdGate()
 // {
 //   RCLCPP_INFO(node_->get_logger(), "Sending command to gate...");
 // }
 
-void Localization::pubInitPose(const geometry_msgs::msg::PoseStamped & init_pose)
+void Localization::pubInitPose(const geometry_msgs::msg::PoseWithCovarianceStamped & init_pose)
 {
+  RCLCPP_INFO(node_->get_logger(), "pubInitPose attempt ");
   init_pose_publisher_->publish(init_pose);
+  RCLCPP_INFO(node_->get_logger(), "pubInitPose Done ");
 }
 
 bool Localization::getLocalizationQuality() const

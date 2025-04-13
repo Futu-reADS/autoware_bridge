@@ -1,4 +1,7 @@
 #include "autoware_bridge/route_planning.hpp"
+#include <chrono>
+
+using namespace std::chrono_literals;
 
 RoutePlanning::RoutePlanning(
   rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util)
@@ -19,10 +22,11 @@ RoutePlanning::RoutePlanning(
     std::bind(&RoutePlanning::operationModeStateCallback, this, std::placeholders::_1));
   target_goal_pub_ =
     node_->create_publisher<geometry_msgs::msg::PoseStamped>("/planning/mission_planning/goal", 10);
+  clear_route_client =node_->create_client<autoware_adapi_v1_msgs::srv::ClearRoute>("/api/routing/clear_route");
 }
 
 void RoutePlanning::execute(
-  const std::string & task_id, const geometry_msgs::msg::PoseStamped & goal_pose)
+  const std::string & task_id, const TaskInput& input)
 {
   autoware_bridge_util_->updateTaskStatus(task_id, "RUNNING");
 
@@ -32,6 +36,10 @@ void RoutePlanning::execute(
   bool failed = false;
   bool timeout = false;
 
+  auto pose = std::get_if<geometry_msgs::msg::PoseStamped>(&input.data);
+  if (!pose) {
+    const geometry_msgs::msg::PoseStamped& goal_pose = *pose;
+  }
   while (true) {
     std::lock_guard<std::mutex> lock(task_mutex_);
 
@@ -171,4 +179,20 @@ void RoutePlanning::routeStateCallback(const RouteState & msg)
 void RoutePlanning::operationModeStateCallback(const OperationModeState & msg)
 {
   operation_mode_state_ = msg;
+}
+
+void RoutePlanning::cancelCurrentRoute()
+{
+  while (!clear_route_client->wait_for_service(1s)) {
+    if (!rclcpp::ok()) {
+      RCLCPP_ERROR(
+        node_->get_logger(), "Interrupted while waiting for clear_route service. Exiting.");
+      return;
+    }
+    RCLCPP_INFO(node_->get_logger(), "clear_route service not available, waiting again...");
+  }
+  auto request = std::make_shared<ClearRoute::Request>();
+
+  auto future_result = clear_route_client->async_send_request(request);
+
 }

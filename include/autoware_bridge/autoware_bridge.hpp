@@ -20,8 +20,7 @@
 #include <memory>
 #include <mutex>
 
-class AutowareBridgeNode : public rclcpp::Node,
-                           public std::enable_shared_from_this<AutowareBridgeNode>
+class AutowareBridgeNode : public rclcpp::Node
 {
 public:
   AutowareBridgeNode(std::shared_ptr<AutowareBridgeUtil> util);

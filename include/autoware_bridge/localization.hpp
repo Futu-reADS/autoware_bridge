@@ -8,6 +8,7 @@
 
 #include <autoware_adapi_v1_msgs/msg/localization_initialization_state.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <tier4_system_msgs/msg/mode_change_available.hpp>
 
 #include <atomic>
@@ -23,10 +24,9 @@ class Localization : public BaseTask
 {
 public:
   Localization(
-    rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util);
+    std::shared_ptr<rclcpp::Node> node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util);
 
-  void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & init_pose)
-    override;                           // Executes localization
+  void execute(const std::string & task_id, const TaskInput& input)override;                           // Executes localization
   void cancel() override;               // Requests task cancellation
   bool getLocalizationQuality() const;  // this getter is used in autoware_bridge.cpp
 
@@ -35,9 +35,10 @@ public:
     autoware_adapi_v1_msgs::msg::LocalizationInitializationState;
   using ModeChangeAvailable = tier4_system_msgs::msg::ModeChangeAvailable;
   using PoseStamped = geometry_msgs::msg::PoseStamped;
-
+  using PoseWithCovarianceStamped = geometry_msgs::msg::PoseWithCovarianceStamped;
 private:
-  rclcpp::Node::SharedPtr node_;
+  //rclcpp::Node::SharedPtr node_;
+  std::shared_ptr<rclcpp::Node> node_;
   std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;
   std::atomic<bool> is_cancel_requested_;
 
@@ -50,14 +51,16 @@ private:
 
   // Helper methods
   // void sendCmdGate();
-  void pubInitPose(const geometry_msgs::msg::PoseStamped & init_pose);
+  //void pubInitPose(const geometry_msgs::msg::PoseStamped & init_pose);
+  void pubInitPose(const geometry_msgs::msg::PoseWithCovarianceStamped & init_pose);
 
   // callbacks
   void localizationQualityCallback(const ModeChangeAvailable & msg);
   void localizationStateCallback(const LocalizationInitializationState & msg);
 
   // Publisher
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr init_pose_publisher_;
+  //rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr init_pose_publisher_;
+  rclcpp::Publisher<PoseWithCovarianceStamped>::SharedPtr init_pose_publisher_;
 
   // Subscriber
   rclcpp::Subscription<LocalizationInitializationState>::SharedPtr localization_state_subscriber_;

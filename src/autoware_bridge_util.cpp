@@ -88,13 +88,21 @@ TaskInfo AutowareBridgeUtil::getTaskStatus(const std::string & task_id)
   std::lock_guard<std::mutex> lock(task_mutex_);  // Ensure thread safety
   auto it = task_map_.find(task_id);
 
+
   if (it != task_map_.end()) {
     data = it->second;
   } else {
-    RCLCPP_WARN(
-      rclcpp::get_logger("autoware_bridge_util"), "Requested task_id: %s is not the active one.",
-      task_id.c_str());
-  }
+    //RCLCPP_WARN(
+      //rclcpp::get_logger("autoware_bridge_util"), "Requested task_id: %s is not the active one.",
+      //task_id.c_str());
+      static rclcpp::Logger logger = rclcpp::get_logger("autoware_bridge_util");
+      static auto clock = std::make_shared<rclcpp::Clock>();
+
+    RCLCPP_INFO_THROTTLE(
+      logger, *clock, 2000,
+      "Requested task_id: %s is not the active one.",
+      task_id.c_str());  
+    }
   return data;
 }
 

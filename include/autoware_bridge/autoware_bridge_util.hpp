@@ -2,7 +2,7 @@
 #define AUTOWARE_BRIDGE_UTIL_HPP
 
 #include "autoware_bridge/srv/get_task_status.hpp"
-#include "base_task.hpp"
+#include "autoware_bridge/base_task.hpp"
 #include "rclcpp/rclcpp.hpp"
 
 #include <map>
@@ -10,7 +10,10 @@
 #include <mutex>
 #include <string>
 
+
 #define EMPTY_STRING ""
+
+using autoware_bridge::BaseTask;
 
 enum class TaskRequestType { STATUS, REASON, RETRIES, TOTAL_RETRIES, CANCEL_STATUS, CANCEL_REASON };
 
