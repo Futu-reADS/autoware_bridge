@@ -79,7 +79,10 @@ void AutowareBridgeNode::localizationRequestCallback(
     return;
   }
   RCLCPP_INFO(this->get_logger(), "LOCALIZATION CALLBACK");
-  auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  //auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  auto node_ptr = std::dynamic_pointer_cast<AutowareBridgeNode>(shared_from_this());
+  //auto node_ptr = std::dynamic_pointer_cast<AutowareBridgeNode>(this->rclcpp::Node::shared_from_this());
+ 
   auto localization_task = std::make_shared<Localization>(node_ptr, autoware_bridge_util_);
 
   startTaskExecution(msg->task_id.data, msg->pose, localization_task);
@@ -92,7 +95,8 @@ void AutowareBridgeNode::routePlanningRequestCallback(
     return;
   }
   RCLCPP_INFO(this->get_logger(), "route_planning CALLBACK");
-  auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  //auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  auto node_ptr = std::dynamic_pointer_cast<AutowareBridgeNode>(shared_from_this());
   auto route_planning_task = std::make_shared<RoutePlanning>(node_ptr, autoware_bridge_util_);
   startTaskExecution(msg->task_id.data, msg->pose, route_planning_task);
 }
@@ -105,7 +109,8 @@ void AutowareBridgeNode::autonomousDrivingRequestCallback(
   }
   RCLCPP_INFO(this->get_logger(), "autonomous_driving CALLBACK");
   geometry_msgs::msg::PoseStamped dummy_pose_stamped;
-  auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  //auto node_ptr = std::enable_shared_from_this<AutowareBridgeNode>::shared_from_this();
+  auto node_ptr = std::dynamic_pointer_cast<AutowareBridgeNode>(shared_from_this());
   auto autonomous_driving_task =
     std::make_shared<AutonomousDriving>(node_ptr, autoware_bridge_util_);
   startTaskExecution(msg->data, dummy_pose_stamped, autonomous_driving_task);
