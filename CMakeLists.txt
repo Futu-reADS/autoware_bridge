@@ -12,6 +12,7 @@ find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(autoware_adapi_v1_msgs REQUIRED)
 find_package(tier4_system_msgs REQUIRED)
+find_package(tier4_control_msgs REQUIRED)
 find_package(ftd_master_msgs REQUIRED)
 find_package(autoware_bridge_msgs REQUIRED)
 find_package(autoware_auto_msgs REQUIRED)
@@ -45,6 +46,7 @@ ament_target_dependencies(autoware_bridge_lib
   geometry_msgs
   autoware_adapi_v1_msgs
   tier4_system_msgs
+  tier4_control_msgs
   ftd_master_msgs
   autoware_bridge_msgs
   autoware_auto_msgs

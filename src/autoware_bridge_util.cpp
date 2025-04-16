@@ -90,9 +90,9 @@ TaskInfo AutowareBridgeUtil::getTaskStatus(const std::string & task_id)
   if (it != task_map_.end()) {
     data = it->second;
   } else {
-    RCLCPP_WARN(
-      rclcpp::get_logger("autoware_bridge_util"), "Requested task_id: %s is not the active one.",
-      task_id.c_str());
+    //RCLCPP_WARN(
+      //rclcpp::get_logger("autoware_bridge_util"), "Requested task_id: %s is not the active one.",
+      //task_id.c_str());
   }
   return data;
 }

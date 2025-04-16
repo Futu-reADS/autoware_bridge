@@ -1,7 +1,7 @@
 #include "autoware_bridge/route_planning.hpp"
 
 RoutePlanning::RoutePlanning(
-  rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util)
+  std::shared_ptr<rclcpp::Node> node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util)
 : node_(node),
   autoware_bridge_util_(autoware_bridge_util),
   is_cancel_requested_(false),

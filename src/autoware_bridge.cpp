@@ -41,9 +41,9 @@ AutowareBridgeNode::AutowareBridgeNode(std::shared_ptr<AutowareBridgeUtil> util)
 
   // ROS2 Publishers
   task_response_publisher_ =
-    this->create_publisher<diagnostic_msgs::msg::KeyValue>("/autoware_bridge/task_response", 10);
+    this->create_publisher<autoware_bridge_msgs::msg::TaskStatusResponse>("/autoware_bridge/task_response", 10);
 
-  cancel_response_publisher_ = this->create_publisher<diagnostic_msgs::msg::KeyValue>(
+  cancel_response_publisher_ = this->create_publisher<autoware_bridge_msgs::msg::TaskStatusResponse>(
     "/autoware_bridge/cancel_task_response", 10);
 
   // ROS2 Services
@@ -84,6 +84,9 @@ void AutowareBridgeNode::localizationRequestCallback(
   //auto node_ptr = std::dynamic_pointer_cast<AutowareBridgeNode>(this->rclcpp::Node::shared_from_this());
  
   auto localization_task = std::make_shared<Localization>(node_ptr, autoware_bridge_util_);
+
+  RCLCPP_INFO(
+    this->get_logger(), "[DEEP]Localization task created with task_id: %s", msg->task_id.data.c_str());
 
   startTaskExecution(msg->task_id.data, msg->pose, localization_task);
 }
@@ -171,7 +174,9 @@ void AutowareBridgeNode::publishTaskRejectionReason(
       task_name.c_str());
     return;
   } else {
-    diagnostic_msgs::msg::KeyValue failure_msg;
+    // Create the TaskStatusResponse message
+    autoware_bridge_msgs::msg::TaskStatusResponse failure_msg;
+    // Set the key to the task name and value to "REJECTED"
     failure_msg.key = task_name;
     failure_msg.value = "REJECTED";
     task_response_publisher_->publish(failure_msg);
@@ -182,13 +187,16 @@ void AutowareBridgeNode::publishTaskResponse(const std::string & task_id)
 {
   if (autoware_bridge_util_->isTaskActive(task_id)) {
     TaskInfo task_status = autoware_bridge_util_->getTaskStatus(task_id);
-    diagnostic_msgs::msg::KeyValue task_response;
+    // Create the TaskStatusResponse message for the task response
+    autoware_bridge_msgs::msg::TaskStatusResponse task_response;
     task_response.key = task_id;
     task_response.value = task_status.status;
+    RCLCPP_INFO(
+      this->get_logger(), "[DEEP]1 Task %s status: %s", task_id.c_str(), task_status.status.c_str());
     task_response_publisher_->publish(task_response);
   } else {
     RCLCPP_WARN(
-      this->get_logger(), "Requested task_id: %s is not the active one.", task_id.c_str());
+      this->get_logger(), "[DEEP]2Requested task_id: %s is not the active one.", task_id.c_str());
   }
 }
 
@@ -201,7 +209,7 @@ void AutowareBridgeNode::cancelTaskCallback(const std_msgs::msg::String::SharedP
     is_cancel_requested_ = true;
     active_task_ptr->cancel();
   } else {
-    diagnostic_msgs::msg::KeyValue cancel_response;
+    autoware_bridge_msgs::msg::TaskStatusResponse cancel_response;
     cancel_response.key = requested_task_id;
     cancel_response.value = "REJECTED";
     cancel_response_publisher_->publish(cancel_response);
@@ -212,7 +220,7 @@ void AutowareBridgeNode::publishCancelResponse(const std::string & task_id)
 {
   if (autoware_bridge_util_->isTaskActive(task_id)) {
     TaskInfo task_info = autoware_bridge_util_->getTaskStatus(task_id);
-    diagnostic_msgs::msg::KeyValue cancel_response;
+    autoware_bridge_msgs::msg::TaskStatusResponse cancel_response;
     cancel_response.key = task_id;
     cancel_response.value = task_info.status;
     cancel_response_publisher_->publish(cancel_response);

@@ -8,7 +8,9 @@
 
 #include <autoware_adapi_v1_msgs/msg/localization_initialization_state.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <tier4_system_msgs/msg/mode_change_available.hpp>
+#include <tier4_control_msgs/msg/gate_mode.hpp>
 
 #include <atomic>
 #include <memory>
@@ -28,13 +30,14 @@ public:
   void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & init_pose)
     override;                           // Executes localization
   void cancel() override;               // Requests task cancellation
-  bool getLocalizationQuality() const;  // this getter is used in autoware_bridge.cpp
 
   // Alias
   using LocalizationInitializationState =
     autoware_adapi_v1_msgs::msg::LocalizationInitializationState;
   using ModeChangeAvailable = tier4_system_msgs::msg::ModeChangeAvailable;
   using PoseStamped = geometry_msgs::msg::PoseStamped;
+  using PoseWithCovarianceStamped = geometry_msgs::msg::PoseWithCovarianceStamped;
+  using GateMode = tier4_control_msgs::msg::GateMode;
 
 private:
   //rclcpp::Node::SharedPtr node_;
@@ -50,7 +53,7 @@ private:
   std::mutex task_mutex_;
 
   // Helper methods
-  // void sendCmdGate();
+  void sendCmdGate();
   void pubInitPose(const geometry_msgs::msg::PoseStamped & init_pose);
 
   // callbacks
@@ -58,7 +61,9 @@ private:
   void localizationStateCallback(const LocalizationInitializationState & msg);
 
   // Publisher
-  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr init_pose_publisher_;
+  //rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr init_pose_publisher_;
+  rclcpp::Publisher<PoseWithCovarianceStamped>::SharedPtr init_pose_publisher_;
+  rclcpp::Publisher<GateMode>::SharedPtr current_gate_mode_publisher_;
 
   // Subscriber
   rclcpp::Subscription<LocalizationInitializationState>::SharedPtr localization_state_subscriber_;

@@ -27,7 +27,7 @@ class RoutePlanning : public BaseTask
 {
 public:
   RoutePlanning(
-    rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util);
+    std::shared_ptr<rclcpp::Node> node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util);
 
   void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
     override;              // Executes SetGoal
@@ -39,7 +39,8 @@ public:
   using PoseStamped = geometry_msgs::msg::PoseStamped;
 
 private:
-  rclcpp::Node::SharedPtr node_;
+  //rclcpp::Node::SharedPtr node_;
+  std::shared_ptr<rclcpp::Node> node_;
   std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;
   std::atomic<bool> is_cancel_requested_;
 

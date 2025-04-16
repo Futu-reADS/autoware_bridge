@@ -41,8 +41,8 @@ private:
   rclcpp::Subscription<ModeChangeAvailable>::SharedPtr localization_quality_subscriber_;
 
   // ROS2 Publishers
-  rclcpp::Publisher<diagnostic_msgs::msg::KeyValue>::SharedPtr task_response_publisher_;
-  rclcpp::Publisher<diagnostic_msgs::msg::KeyValue>::SharedPtr cancel_response_publisher_;
+  rclcpp::Publisher<autoware_bridge_msgs::msg::TaskStatusResponse>::SharedPtr task_response_publisher_;
+  rclcpp::Publisher<autoware_bridge_msgs::msg::TaskStatusResponse>::SharedPtr cancel_response_publisher_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr reinitialize_response_publisher_;
 
   // ROS2 Services

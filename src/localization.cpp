@@ -14,7 +14,7 @@ Localization::Localization(
   localization_start_time_(rclcpp::Time(0))
 {
   init_pose_publisher_ =
-    node_->create_publisher<geometry_msgs::msg::PoseStamped>("/initialpose", 10);
+    node_->create_publisher<PoseWithCovarianceStamped>("/initialpose", 10);
 
   localization_state_subscriber_ = node_->create_subscription<LocalizationInitializationState>(
     "/api/localization/initialization_state", 10,
@@ -24,11 +24,17 @@ Localization::Localization(
     "/system/component_state_monitor/component/autonomous/localization",
     rclcpp::QoS(1).transient_local(),
     std::bind(&Localization::localizationQualityCallback, this, std::placeholders::_1));
+
+    current_gate_mode_publisher_ = node_->create_publisher<tier4_control_msgs::msg::GateMode>(
+    "/input/current_gate_mode", rclcpp::QoS{1});
+
+    RCLCPP_INFO(node_->get_logger(), " [AVI00] Localization constructor called successfully.");
 }
 
 void Localization::execute(
   const std::string & task_id, const geometry_msgs::msg::PoseStamped & init_pose)
 {
+  RCLCPP_INFO(node_->get_logger(), " [AVI0] execute function entry.");
   autoware_bridge_util_->updateTaskStatus(task_id, "RUNNING");
   // SET FOR MAX_RETRIES
 
@@ -57,7 +63,7 @@ void Localization::execute(
     if (success) {
       // SUCCESS
       autoware_bridge_util_->updateTaskStatus(task_id, "SUCCESS");
-      RCLCPP_INFO(node_->get_logger(), "Localization task %s successful.", task_id.c_str());
+      RCLCPP_INFO(node_->get_logger(), "[DEEP]100 Localization task %s successful.", task_id.c_str());
       break;
     }
 
@@ -67,6 +73,7 @@ void Localization::execute(
       case LocalizationTaskState::INITIALIZATION:
         if (retry_counter == 1) {
           autoware_bridge_util_->updateTaskStatus(task_id, "RETRYING");
+          RCLCPP_INFO(node_->get_logger(), "RETRYING [AVI1] state: %d retry_counter %d", static_cast<int>(state_), retry_counter);
         }
 
         if (retry_counter <= MAX_INIT_RETRIES) {
@@ -75,8 +82,10 @@ void Localization::execute(
           state_ = LocalizationTaskState::LOCALIZATION;
           autoware_bridge_util_->updateTaskRetries(task_id, retry_counter);
           retry_counter++;
+          RCLCPP_INFO(node_->get_logger(), "[AVI2] state: %d retry_counter %d ", static_cast<int>(state_),retry_counter);
         } else {
           timeout = true;
+          RCLCPP_INFO(node_->get_logger(), "[AVI3] state: %d retry_counter %d ", static_cast<int>(state_),retry_counter);
         }
 
         break;
@@ -84,15 +93,18 @@ void Localization::execute(
 
         switch (localization_state_) {
           case LocalizationInitializationState::UNINITIALIZED:
+            sendCmdGate();
             state_ = LocalizationTaskState::INITIALIZATION;
+            RCLCPP_INFO(node_->get_logger(), "[AVI4] Localization state: %d", localization_state_);
             break;
 
           case LocalizationInitializationState::INITIALIZED:
             localization_start_time_ = node_->get_clock()->now();
             state_ = LocalizationTaskState::LOCALIZATION_CHECK;
+            RCLCPP_INFO(node_->get_logger(), "[AVI5] Localization state: %d", localization_state_);
             break;
           default:
-            RCLCPP_INFO(node_->get_logger(), "Localization state: %d", localization_state_);
+            //RCLCPP_INFO(node_->get_logger(), "[AVI6] Localization state: %d", localization_state_);
             // This may lead to busy loop , is there any other thing which we can do here?
             break;
         }
@@ -103,16 +115,18 @@ void Localization::execute(
           LOC_WAIT_TIMEOUT_S) {
           if (localization_quality_) {
             success = true;
+            RCLCPP_INFO(node_->get_logger(), "[AVI7] Localization state: %d", localization_state_);
           } else {
-            RCLCPP_INFO(node_->get_logger(), "Localisation quality is poor, retrying localization");
+            RCLCPP_INFO(node_->get_logger(), "[AVI8] Localisation quality is poor, retrying localization");
             state_ = LocalizationTaskState::INITIALIZATION;
           }
         } else {
           RCLCPP_INFO_THROTTLE(
-            node_->get_logger(), *node_->get_clock(), 1000, "Waiting for localization result");
+            node_->get_logger(), *node_->get_clock(), 1000, "[AVI9]  Waiting for localization result");
         }
         break;
       default:
+        RCLCPP_ERROR(node_->get_logger(), "[AVI10] Unknown state: %d", static_cast<int>(state_));
         break;
     }
   }
@@ -130,11 +144,14 @@ void Localization::cancel()
 void Localization::localizationQualityCallback(const ModeChangeAvailable & msg)
 {
   localization_quality_ = msg.available;
+  RCLCPP_INFO(node_->get_logger(), "[AVI11] localizationQualityCallback: localization_quality_%d", localization_quality_);
 }
 
 void Localization::localizationStateCallback(const LocalizationInitializationState & msg)
 {
   localization_state_ = msg.state;
+  RCLCPP_INFO(node_->get_logger(), "[AVI12] localizationStateCallback:localization_state_ %d", localization_state_);
+  //uint16 UNKNOWN = 0, UNINITIALIZED = 1, INITIALIZING = 2, INITIALIZED = 3
 }
 // check it's usability
 // void Localization::sendCmdGate()
@@ -144,10 +161,38 @@ void Localization::localizationStateCallback(const LocalizationInitializationSta
 
 void Localization::pubInitPose(const geometry_msgs::msg::PoseStamped & init_pose)
 {
-  init_pose_publisher_->publish(init_pose);
+  geometry_msgs::msg::PoseWithCovarianceStamped target_pose;
+  
+  // Copy header from input pose.
+  target_pose.header = init_pose.header;
+  
+  // frame_id and stamp.
+  target_pose.header.frame_id = "map";
+  target_pose.header.stamp = node_->now();
+  
+  // Convert PoseStamped to PoseWithCovarianceStamped by copying the pose.
+  target_pose.pose.pose = init_pose.pose;
+  
+  RCLCPP_INFO(
+    node_->get_logger(),
+    "target_pose: frame_id=%s, stamp=%u.%u, position=(%f, %f, %f), orientation=(%f, %f, %f, %f)",
+    target_pose.header.frame_id.c_str(),
+    target_pose.header.stamp.sec,
+    target_pose.header.stamp.nanosec,
+    target_pose.pose.pose.position.x,
+    target_pose.pose.pose.position.y,
+    target_pose.pose.pose.position.z,
+    target_pose.pose.pose.orientation.x,
+    target_pose.pose.pose.orientation.y,
+    target_pose.pose.pose.orientation.z,
+    target_pose.pose.pose.orientation.w);
+  
+  init_pose_publisher_->publish(target_pose);
 }
 
-bool Localization::getLocalizationQuality() const
+void Localization::sendCmdGate()
 {
-  return localization_quality_;
+  tier4_control_msgs::msg::GateMode mode_msg;
+  mode_msg.data = tier4_control_msgs::msg::GateMode::AUTO;
+  current_gate_mode_publisher_->publish(mode_msg);
 }
