@@ -9,6 +9,7 @@
 #include <autoware_adapi_v1_msgs/msg/operation_mode_state.hpp>
 #include <autoware_adapi_v1_msgs/msg/route_state.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
+#include "autoware_adapi_v1_msgs/srv/clear_route.hpp"
 
 #include <atomic>
 #include <memory>
@@ -37,6 +38,7 @@ public:
   using OperationModeState = autoware_adapi_v1_msgs::msg::OperationModeState;
   using RouteState = autoware_adapi_v1_msgs::msg::RouteState;
   using PoseStamped = geometry_msgs::msg::PoseStamped;
+  using ClearRoute = autoware_adapi_v1_msgs::srv::ClearRoute;
 
 private:
   //rclcpp::Node::SharedPtr node_;
@@ -59,12 +61,16 @@ private:
   // Publisher
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr target_goal_pub_;
 
+  // Client
+  rclcpp::Client<ClearRoute>::SharedPtr clear_route_client;
   // callback
   void routeStateCallback(const RouteState & msg);
   void operationModeStateCallback(const OperationModeState & msg);
 
   // Helper methods
   void publishTargetPose(const geometry_msgs::msg::PoseStamped & goal_pose);
+
+  void cancelCurrentRoute();
 };
 
 #endif  // ROUTE_PLANNING_HPP

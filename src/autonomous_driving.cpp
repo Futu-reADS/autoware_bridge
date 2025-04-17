@@ -19,6 +19,8 @@ AutonomousDriving::AutonomousDriving(
   // Initialize autonomous client
   auto_drive_engage_client = node_->create_client<autoware_adapi_v1_msgs::srv::ChangeOperationMode>(
     "/api/operation_mode/change_to_autonomous");
+  clear_route_client =node_->create_client<autoware_adapi_v1_msgs::srv::ClearRoute>("/api/routing/clear_route");
+  // Initialize subscribers
   operation_mode_state_sub_ = node_->create_subscription<OperationModeState>(
     "/api/operation_mode/state", 10,
     std::bind(&AutonomousDriving::operationModeStateCallback, this, std::placeholders::_1));
@@ -46,21 +48,22 @@ void AutonomousDriving::execute(
     if (is_cancel_requested_) {
       // CANCEL
       autoware_bridge_util_->updateTaskStatus(task_id, "CANCELLED");
-      RCLCPP_INFO(node_->get_logger(), "Localization task %s cancelled.", task_id.c_str());
+      cancelCurrentRoute();
+      RCLCPP_INFO(node_->get_logger(), "Driving task %s cancelled.", task_id.c_str());
       break;
     }
 
     if (timeout) {
       // TIMEOUT
       autoware_bridge_util_->updateTaskStatus(task_id, "TIMEOUT");
-      RCLCPP_ERROR(node_->get_logger(), "Localization task %s timeout.", task_id.c_str());
+      RCLCPP_ERROR(node_->get_logger(), "Driving task %s timeout.", task_id.c_str());
       break;
     }
 
     if (success) {
       // SUCCESS
       autoware_bridge_util_->updateTaskStatus(task_id, "SUCCESS");
-      RCLCPP_INFO(node_->get_logger(), "Localization task %s successful.", task_id.c_str());
+      RCLCPP_INFO(node_->get_logger(), "Driving task %s successful.", task_id.c_str());
       break;
     }
 
@@ -161,4 +164,20 @@ void AutonomousDriving::vehicleMotionStateCallback(const MotionState msg)
 void AutonomousDriving::routeStateCallback(const RouteState msg)
 {
   route_state_ = msg.state;
+}
+
+void AutonomousDriving::cancelCurrentRoute()
+{
+  while (!clear_route_client->wait_for_service(1s)) {
+    if (!rclcpp::ok()) {
+      RCLCPP_ERROR(
+        node_->get_logger(), "Interrupted while waiting for clear_route service. Exiting.");
+      return;
+    }
+    RCLCPP_INFO(node_->get_logger(), "clear_route service not available, waiting again...");
+  }
+  auto request = std::make_shared<ClearRoute::Request>();
+
+  auto future_result = clear_route_client->async_send_request(request);
+
 }
