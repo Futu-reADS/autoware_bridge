@@ -160,7 +160,11 @@ void RoutePlanning::cancel()
 
 void RoutePlanning::publishTargetPose(const geometry_msgs::msg::PoseStamped & goal_pose)
 {
-  target_goal_pub_->publish(goal_pose);
+  geometry_msgs::msg::PoseStamped target_goal_pose;
+  target_goal_pose.pose = goal_pose.pose;
+  target_goal_pose.header.frame_id = "map";
+  target_goal_pose.header.stamp = node_->now();
+  target_goal_pub_->publish(target_goal_pose);
 }
 
 void RoutePlanning::routeStateCallback(const RouteState & msg)
