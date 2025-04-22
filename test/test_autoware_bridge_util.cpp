@@ -1,9 +1,10 @@
+// test_autoware_bridge_util.cpp
+
 #include "autoware_bridge/autoware_bridge_util.hpp"
 #include "autoware_bridge/base_task.hpp"
 #include "autoware_bridge/srv/get_task_status.hpp"
 
 #include <gtest/gtest.h>
-
 #include <chrono>
 #include <memory>
 #include <string>
@@ -11,263 +12,274 @@
 #include <vector>
 
 // Dummy BaseTask implementation to test active task management.
-class DummyTask : public BaseTask
-{
+class DummyTask : public BaseTask {
 public:
-  void execute(
-    const std::string & task_id, const geometry_msgs::msg::PoseStamped & /*pose*/) override
-  {
-    // Dummy implementation.
-    (void)task_id;
+  void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & /*pose*/) override {
+    (void)task_id; // Dummy implementation.
   }
-  void cancel() override
-  {
+  void cancel() override {
     // Dummy implementation.
   }
 };
 
-class AutowareBridgeUtilTest : public ::testing::Test
-{
+class AutowareBridgeUtilTest : public ::testing::Test {
 protected:
-  void SetUp() override { util = std::make_shared<AutowareBridgeUtil>(); }
+  void SetUp() override {
+    util = std::make_shared<AutowareBridgeUtil>();
+  }
   std::shared_ptr<AutowareBridgeUtil> util;
 };
 
-/* TEST_F(AutowareBridgeUtilTest, UpdateTaskStatusTest) {
+// -----------------------------
+// Topic-Based Execution Responses
+// -----------------------------
+
+//1. Test: Update Task Status and Cancellation for "PENDING" then "CANCELLED"
+TEST_F(AutowareBridgeUtilTest, UpdateTaskStatusTest) {
   std::string task_id = "test_task";
-  // First update should create an entry.
-  util->updateTaskStatus(task_id, TaskRequestType::STATUS, "PENDING");
+  
+  // Create the task entry.
+  util->updateTaskId(task_id);
+  
+  // Update main status to "PENDING"
+  util->updateTaskStatus(task_id, "PENDING");
   TaskInfo info = util->getTaskStatus(task_id);
   EXPECT_EQ(info.status, "PENDING");
-
-  // Update reason.
-  util->updateTaskStatus(task_id, TaskRequestType::REASON, "Starting");
-  info = util->getTaskStatus(task_id);
-  EXPECT_EQ(info.reason, "Starting");
-
+  
   // Update retry number.
-  util->updateTaskStatus(task_id, TaskRequestType::RETRIES, "", 3);
+  util->updateTaskRetries(task_id, 3);
   info = util->getTaskStatus(task_id);
   EXPECT_EQ(info.retry_number, 3);
 
   // Update total retries.
-  util->updateTaskStatus(task_id, TaskRequestType::TOTAL_RETRIES, "", 5);
+  util->updateTask(task_id, TaskRequestType::TOTAL_RETRIES, "", 5);
   info = util->getTaskStatus(task_id);
   EXPECT_EQ(info.total_retries, 5);
 
-  // Update cancellation status.
-  util->updateTaskStatus(task_id, TaskRequestType::CANCEL_STATUS, "CANCELLED");
+  // Update cancellation:
+  // For status "CANCELLED", updateTaskStatus should update cancellation info.
+  util->updateTaskStatus(task_id, "CANCELLED");
   info = util->getTaskStatus(task_id);
-  EXPECT_EQ(info.cancel_info.status, "CANCELLED");
-
-  // Update cancellation reason.
-  util->updateTaskStatus(task_id, TaskRequestType::CANCEL_REASON, "User requested");
-  info = util->getTaskStatus(task_id);
-  EXPECT_EQ(info.cancel_info.reason, "User requested");
+  EXPECT_EQ(info.status, "CANCELLED");
+  // Verify cancel status is updated to "CANCELLED"
+  EXPECT_EQ(info.cancel_status, "CANCELLED");
 }
 
+//2. Test: Update Fail Status - "FAILED"
 TEST_F(AutowareBridgeUtilTest, UpdateFailStatusTest) {
   std::string task_id = "fail_task";
-  util->updateFailStatus(task_id, "Error occurred");
+  util->updateTaskId(task_id);
+  util->updateTaskStatus(task_id, "FAILED");
   TaskInfo info = util->getTaskStatus(task_id);
   EXPECT_EQ(info.status, "FAILED");
-  EXPECT_EQ(info.reason, "Error occurred");
+  // For FAILED, cancellation auto-updates to "FAILED_DUE_TO_TASK_FAILURE".
+  EXPECT_EQ(info.cancel_status, "FAILED_DUE_TO_TASK_FAILURE");
 }
 
+//3. Test: Update Success Status - "SUCCESS"
 TEST_F(AutowareBridgeUtilTest, UpdateSuccessStatusTest) {
   std::string task_id = "success_task";
-  util->updateSuccessStatus(task_id);
+  util->updateTaskId(task_id);
+  util->updateTaskStatus(task_id, "SUCCESS");
   TaskInfo info = util->getTaskStatus(task_id);
   EXPECT_EQ(info.status, "SUCCESS");
+  // For SUCCESS, cancellation auto-updates to "FAILED_DUE_TO_TASK_SUCCESS".
+  EXPECT_EQ(info.cancel_status, "FAILED_DUE_TO_TASK_SUCCESS");
 }
 
-TEST_F(AutowareBridgeUtilTest, UpdateCancellationStatusTest) {
-  std::string task_id = "cancel_task";
-  util->updateCancellationStatus(task_id, "Cancelled by user");
-  TaskInfo info = util->getTaskStatus(task_id);
-
-  // Verify main status and reason
-  EXPECT_EQ(info.status, "CANCELLED");
-  EXPECT_EQ(info.reason, "Cancelled by user");
-
-   // Verify cancel-specific fields
-  EXPECT_EQ(info.cancel_info.status, "CANCELLED");
-  EXPECT_EQ(info.cancel_info.reason, "Cancelled by user");
-}
-
-TEST_F(AutowareBridgeUtilTest, UpdateRunningStatusWithRetriesTest) {
-  std::string task_id = "running_task";
-  int total_retries = 4;
-  util->updateRunningStatusWithRetries(task_id, total_retries);
-  TaskInfo info = util->getTaskStatus(task_id);
-  EXPECT_EQ(info.status, "RUNNING");
-  EXPECT_EQ(info.total_retries, total_retries);
-}
-
+//4. Test: Update Halt Status - "HALTED"
 TEST_F(AutowareBridgeUtilTest, UpdateHaltStatusTest) {
   std::string task_id = "halt_task";
-  util->updateHaltStatus(task_id, "Halted due to timeout");
+  util->updateTaskId(task_id);
+  util->updateTaskStatus(task_id, "HALTED");
   TaskInfo info = util->getTaskStatus(task_id);
   EXPECT_EQ(info.status, "HALTED");
-  EXPECT_EQ(info.reason, "Halted due to timeout");
+  // For HALTED, no cancellation update is performed so default is empty.
+  EXPECT_EQ(info.cancel_status, "");
 }
 
-TEST_F(AutowareBridgeUtilTest, IsTaskActiveTest) {
-  std::string task_id = "active_task";
-  // Initially, no task exists.
-  EXPECT_FALSE(util->isTaskActive(task_id));
+// -----------------------------
+// Service-Based Execution Inquiry Responses
+// -----------------------------
 
-  util->updateTaskStatus(task_id, TaskRequestType::STATUS, "PENDING");
-  EXPECT_TRUE(util->isTaskActive(task_id));
-}
-
-TEST_F(AutowareBridgeUtilTest, GetActiveTaskIdTest) {
-  // When no tasks exist, getActiveTaskId() should return "NO_ACTIVE_TASK".
-  EXPECT_EQ(util->getActiveTaskId(), "NO_ACTIVE_TASK");
-
-  // Add a task.
-  std::string task_id = "active_task";
-  util->updateTaskStatus(task_id, TaskRequestType::STATUS, "PENDING");
-  EXPECT_EQ(util->getActiveTaskId(), task_id);
-}
-
-TEST_F(AutowareBridgeUtilTest, IsActiveTaskIdEmptyTest) {
-  EXPECT_TRUE(util->isActiveTaskIdEmpty());
-  std::string task_id = "some_task";
-  util->updateTaskStatus(task_id, TaskRequestType::STATUS, "PENDING");
-  EXPECT_FALSE(util->isActiveTaskIdEmpty());
-}
-
-TEST_F(AutowareBridgeUtilTest, GetTaskStatusTest) {
-  std::string task_id = "status_task";
-  // For a non-existent task, getTaskStatus() returns default TaskInfo with empty status.
-  TaskInfo info = util->getTaskStatus(task_id);
-  EXPECT_EQ(info.status, "");
-
-  util->updateTaskStatus(task_id, TaskRequestType::STATUS, "PENDING");
-  info = util->getTaskStatus(task_id);
-  EXPECT_EQ(info.status, "PENDING");
-}
-
-TEST_F(AutowareBridgeUtilTest, ActiveTaskPointerTest) {
-  auto dummy = std::make_shared<DummyTask>();
-  util->setActiveTask(dummy);
-  EXPECT_EQ(util->getActiveTaskPointer(), dummy);
-  util->clearActiveTask();
-  EXPECT_EQ(util->getActiveTaskPointer(), nullptr);
-}
-
+//5. Test: Handle Status Request Service - first with no active task then with active task.
 TEST_F(AutowareBridgeUtilTest, HandleStatusRequestTest) {
   auto request = std::make_shared<autoware_bridge::srv::GetTaskStatus::Request>();
   auto response = std::make_shared<autoware_bridge::srv::GetTaskStatus::Response>();
   request->task_id = "service_task";
 
-  // With no active task entry, handleStatusRequest should set response to REJECTED.
-  util->handleStatusRequest(request, response);
+  // With no active task, expect rejection.
+  util->handleStatusRequestSrvc(request, response);
   EXPECT_EQ(response->status, "REJECTED");
-  EXPECT_EQ(response->reason, "Requested task_id is not the last active one");
   EXPECT_EQ(response->retry_number, 0);
   EXPECT_EQ(response->total_retries, 0);
 
-  // Update the task status and then handle the request.
-  util->updateTaskStatus(request->task_id, TaskRequestType::STATUS, "RUNNING");
-  util->updateTaskStatus(request->task_id, TaskRequestType::RETRIES, "", 2);
-  util->updateTaskStatus(request->task_id, TaskRequestType::TOTAL_RETRIES, "", 5);
+  // Create and update a task.
+  util->updateTaskId(request->task_id);
+  util->updateTaskStatus(request->task_id, "RUNNING");
+  util->updateTaskRetries(request->task_id, 2);
+  util->updateTask(request->task_id, TaskRequestType::TOTAL_RETRIES, "", 5);
 
-  util->handleStatusRequest(request, response);
+  util->handleStatusRequestSrvc(request, response);
   EXPECT_EQ(response->status, "RUNNING");
   EXPECT_EQ(response->retry_number, 2);
   EXPECT_EQ(response->total_retries, 5);
 }
 
-// New Test: Concurrent Access / Thread Safety
+// -----------------------------
+// Cancellation Responses (Indirectly Tested via Status Updates)
+// -----------------------------
+// The cancel response conditions are verified in the above tests:
+//   - "FAILED" -> "FAILED_DUE_TO_TASK_FAILURE"
+//   - "SUCCESS" -> "FAILED_DUE_TO_TASK_SUCCESS"
+//   - "CANCELLED" -> "CANCELLED"
+
+// -----------------------------
+// Utility Behavior: Active Task, Concurrency, and Defaults
+// -----------------------------
+
+//6. Test: Check if Task is Active.
+TEST_F(AutowareBridgeUtilTest, IsTaskActiveTest) {
+  std::string task_id = "active_task";
+  EXPECT_FALSE(util->isTaskActive(task_id));
+  
+  util->updateTaskId(task_id);
+  util->updateTaskStatus(task_id, "PENDING");
+  EXPECT_TRUE(util->isTaskActive(task_id));
+}
+
+//7. Test: Retrieve Active Task ID.
+TEST_F(AutowareBridgeUtilTest, GetActiveTaskIdTest) {
+  EXPECT_EQ(util->getActiveTaskId(), "NO_ACTIVE_TASK");
+  
+  std::string task_id = "active_task";
+  util->updateTaskId(task_id);
+  EXPECT_EQ(util->getActiveTaskId(), task_id);
+}
+
+//8. Test: Retrieve Task Status
+TEST_F(AutowareBridgeUtilTest, GetTaskStatusTest) {
+  std::string task_id = "status_task";
+  // When task_id is not updated, the default TaskInfo is returned.
+  // The default status is "PENDING" (as initialized by TaskInfo(3)).
+  TaskInfo info = util->getTaskStatus(task_id);
+  EXPECT_EQ(info.status, "PENDING");
+  
+  util->updateTaskId(task_id);
+  util->updateTaskStatus(task_id, "PENDING");
+  info = util->getTaskStatus(task_id);
+  EXPECT_EQ(info.status, "PENDING");
+}
+
+//9. Test: Active Task Pointer Management.
+TEST_F(AutowareBridgeUtilTest, ActiveTaskPointerTest) {
+  auto dummy = std::make_shared<DummyTask>();
+  util->setActiveTaskPtr(dummy);
+  EXPECT_EQ(util->getActiveTaskPtr(), dummy);
+  util->clearActiveTaskPtr();
+  EXPECT_EQ(util->getActiveTaskPtr(), nullptr);
+}
+
+//10. Test: Concurrent Update / Thread Safety.
 TEST_F(AutowareBridgeUtilTest, ConcurrentUpdateTest) {
   std::string task_id = "concurrent_task";
   const int num_threads = 10;
   const int num_iterations = 100;
   std::vector<std::thread> threads;
 
+  util->updateTaskId(task_id);
+
   auto updateFunc = [this, &task_id, num_iterations]() {
     for (int i = 0; i < num_iterations; ++i) {
-      // Alternate between updating status and retries.
-      util->updateTaskStatus(task_id, TaskRequestType::STATUS, "RUNNING");
-      util->updateTaskStatus(task_id, TaskRequestType::RETRIES, "", i);
+      util->updateTaskStatus(task_id, "RUNNING");
+      util->updateTaskRetries(task_id, i);
       std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
   };
 
-  // Launch multiple threads updating the same task concurrently.
   for (int i = 0; i < num_threads; ++i) {
     threads.emplace_back(updateFunc);
   }
-
   for (auto & t : threads) {
     t.join();
   }
 
-  // Final value might be non-deterministic for retries; verify status is updated.
   TaskInfo info = util->getTaskStatus(task_id);
   EXPECT_EQ(info.status, "RUNNING");
-  // The retry number should be within the expected range.
   EXPECT_GE(info.retry_number, 0);
   EXPECT_LE(info.retry_number, num_iterations - 1);
 }
 
+//11. Test: Multiple Tasks Scenario (only one active task allowed).
 TEST_F(AutowareBridgeUtilTest, MultipleTasksTest) {
-  // Insert the first task.
-  util->updateTaskStatus("task1", TaskRequestType::STATUS, "PENDING");
-  // Only task1 should be active.
+  // Add first task.
+  util->updateTaskId("task1");
   EXPECT_TRUE(util->isTaskActive("task1"));
 
-  // Insert the second task.
-  util->updateTaskStatus("task2", TaskRequestType::STATUS, "PENDING");
-  // After adding task2, the implementation clears previous tasks.
+  // Adding a second task clears previous tasks.
+  util->updateTaskId("task2");
   EXPECT_FALSE(util->isTaskActive("task1"));
   EXPECT_TRUE(util->isTaskActive("task2"));
-
-  // Insert the third task.
-  util->updateTaskStatus("task3", TaskRequestType::STATUS, "PENDING");
-  // Now only task3 should be active.
-  EXPECT_FALSE(util->isTaskActive("task1"));
-  EXPECT_FALSE(util->isTaskActive("task2"));
-  EXPECT_TRUE(util->isTaskActive("task3"));
-
-  // getActiveTaskId() should return "task3".
-  EXPECT_EQ(util->getActiveTaskId(), "task3");
 }
 
-// New Test: Multiple Tasks Scenario
-/* TEST_F(AutowareBridgeUtilTest, MultipleTasksTest) {
-  // Insert multiple tasks.
-  std::vector<std::string> task_ids = {"task1", "task2", "task3"};
-  for (const auto & id : task_ids) {
-    util->updateTaskStatus(id, TaskRequestType::STATUS, "PENDING");
-  }
-
-  // Check each task is active.
-  for (const auto & id : task_ids) {
-    EXPECT_TRUE(util->isTaskActive(id));
-  }
-
-  // getActiveTaskId() returns the first found task; ensure it is one of the tasks.
-  std::string activeTaskId = util->getActiveTaskId();
-  std::cout << "Checking task2 status: " << util->isTaskActive("task2") << std::endl;
-  std::cout << "Checking task3 status: " << util->isTaskActive("task3") << std::endl;
-  std::cout << "Currently active task ID: " << util->getActiveTaskId() << std::endl;
-  EXPECT_TRUE(std::find(task_ids.begin(), task_ids.end(), activeTaskId) != task_ids.end());
-} */
-
-/* // New Test: Invalid Request Type (simulate out-of-range enum value)
-TEST_F(AutowareBridgeUtilTest, InvalidRequestTypeTest) {
-  std::string task_id = "invalid_task";
-  // Cast an out-of-range integer to TaskRequestType.
-  TaskRequestType invalidType = static_cast<TaskRequestType>(999);
-  // Call updateTaskStatus with an invalid request type.
-  // It should trigger the default case and log a warning.
-  // There is no change to TaskInfo for an invalid request.
-  util->updateTaskStatus(task_id, invalidType, "IGNORED");
+//12. Test: Get Task Status for a Non-Existent Task.
+TEST_F(AutowareBridgeUtilTest, GetTaskStatusNonExistentTest) {
+  std::string task_id = "non_existent_task";
+  // When a non-existent task is queried, the default TaskInfo is returned.
+  // The default status is "PENDING".
   TaskInfo info = util->getTaskStatus(task_id);
-  // Since no valid update occurred, status should remain default.
-  EXPECT_EQ(info.status, "");
+  EXPECT_EQ(info.status, "PENDING");
 }
- */
+
+// -----------------------------
+// Specific Test for updateTaskId Behavior
+// -----------------------------
+
+//13. Test: Verify updateTaskId clears previous tasks and initializes new task correctly.
+TEST_F(AutowareBridgeUtilTest, UpdateTaskIdTest) {
+  // Create a task with task_id "old_task"
+  util->updateTaskId("old_task");
+  EXPECT_TRUE(util->isTaskActive("old_task"));
+
+  // Now call updateTaskId with a new task_id, which should clear previous tasks.
+  util->updateTaskId("new_task");
+  EXPECT_FALSE(util->isTaskActive("old_task"));
+  EXPECT_TRUE(util->isTaskActive("new_task"));
+
+  // Verify that the new task is initialized with default values.
+  // The default TaskInfo(3) initializes status to "PENDING" and total_retries to 3.
+  TaskInfo info = util->getTaskStatus("new_task");
+  EXPECT_EQ(info.status, "PENDING");
+  EXPECT_EQ(info.total_retries, 3);
+}
+
+//14. Test: Invalid request type → hits the `default` switch‑case branch
+TEST_F(AutowareBridgeUtilTest, UpdateTaskWithInvalidRequestType) {
+  std::string task_id = "invalid_req";
+  util->updateTaskId(task_id);
+
+  // Force an out‑of‑range enum; enters the `default:` in updateTask()
+  util->updateTask(task_id,
+                   static_cast<TaskRequestType>(-1),
+                   /*value=*/"", /*number=*/0);
+
+  // Nothing should crash, and status stays at its initialized “PENDING”
+  TaskInfo info = util->getTaskStatus(task_id);
+  EXPECT_EQ(info.status, "PENDING");
+}
+
+//15. Test: Non‑active task_id → hits the `else { RCLCPP_ERROR… }` branch
+TEST_F(AutowareBridgeUtilTest, UpdateTaskNotActiveTaskErrorBranch) {
+  // Never called updateTaskId(), so map is empty
+  const std::string missing_id = "no_such_task";
+
+  // This should take the “not found” path
+  util->updateTask(missing_id,
+                   TaskRequestType::STATUS,
+                   /*value=*/"SHOULD_NOT_MATTER",
+                   /*number=*/0);
+
+  // Querying any non‑existent task still returns the default TaskInfo
+  TaskInfo info = util->getTaskStatus(missing_id);
+  EXPECT_EQ(info.status, "PENDING");
+}

@@ -18,7 +18,7 @@ RoutePlanning::RoutePlanning(
     "/api/routing/state", 10,
     std::bind(&RoutePlanning::routeStateCallback, this, std::placeholders::_1));
   operation_mode_state_sub_ = node_->create_subscription<OperationModeState>(
-    "/api/operation_mode/state", 10,
+    "/api/operation_mode/state",rclcpp::QoS(1).transient_local(),
     std::bind(&RoutePlanning::operationModeStateCallback, this, std::placeholders::_1));
   target_goal_pub_ =
     node_->create_publisher<geometry_msgs::msg::PoseStamped>("/planning/mission_planning/goal", 10);
@@ -145,8 +145,8 @@ void RoutePlanning::execute(
         } else if (
           node_->get_clock()->now().seconds() - route_state_SET_start_time_.seconds() >= 10) {
           state_ = RoutePlanningTaskState::SET_GOAL;
-          RCLCPP_INFO_THROTTLE(
-            node_->get_logger(), *node_->get_clock(), 1000,
+          RCLCPP_WARN(
+            node_->get_logger(),
             "Autonomous operation mode is still not active... retrying planning please wait.....");
         }
         break;
@@ -180,6 +180,7 @@ void RoutePlanning::routeStateCallback(const RouteState & msg)
 void RoutePlanning::operationModeStateCallback(const OperationModeState & msg)
 {
   operation_mode_state_ = msg;
+  RCLCPP_ERROR(node_->get_logger(), "[PANKAJ]Operation mode state: %d", operation_mode_state_.is_autonomous_mode_available);
 }
 
 void RoutePlanning::cancelCurrentRoute()

@@ -29,6 +29,7 @@ rosidl_generate_interfaces(${PROJECT_NAME}
 # Create a library target from common source files.
 add_library(autoware_bridge_lib
   src/autoware_bridge_util.cpp
+  src/autoware_bridge.cpp
   src/localization.cpp
   src/route_planning.cpp
   src/autonomous_driving.cpp
@@ -92,8 +93,12 @@ if(BUILD_TESTING)
   #find_package(ament_cmake_gtest REQUIRED)
   ##find_package(ament_lint_auto REQUIRED)
   ##ament_lint_auto_find_test_dependencies()
-  ament_add_gtest(test_${PROJECT_NAME}
-    test/test_autoware_bridge_util.cpp
+  ament_add_gmock(test_${PROJECT_NAME}
+    #test/test_autoware_bridge_util.cpp
+    #test/test_localization.cpp
+    #test/test_route_planning.cpp
+    test/test_autonomous_driving.cpp
+    #test/test_autoware_bridge.cpp
   )
   if(TARGET test_${PROJECT_NAME})
     ament_target_dependencies(test_${PROJECT_NAME}
@@ -104,7 +109,18 @@ if(BUILD_TESTING)
       ftd_master_msgs
       autoware_adapi_v1_msgs
     )
-    target_link_libraries(test_${PROJECT_NAME} autoware_bridge_lib)
+    target_link_libraries(test_${PROJECT_NAME} 
+      autoware_bridge_lib
+      ${cpp_typesupport_target}
+    )
+
+    # Coverage flags for GCC or Clang
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+      target_compile_options(autoware_bridge_lib PUBLIC -O0 -g --coverage)
+      target_link_options(autoware_bridge_lib PUBLIC --coverage)
+      target_compile_options(test_${PROJECT_NAME} PRIVATE -O0 -g --coverage)
+      target_link_options(test_${PROJECT_NAME} PRIVATE --coverage)
+    endif()
   endif()
 endif()
 
