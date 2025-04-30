@@ -2,7 +2,7 @@
 
 
 ## About
----------------------------------------------------------------------------------
+
 `autoware_bridge` is a ROS 2 node that orchestrates task execution between a user interface (`UI_bridge`) and 
 the core Autoware modules (localization, route planning, autonomous driving). 
 It handles:
@@ -11,7 +11,6 @@ It handles:
 - Cancellation requests
 - Status queries via ROS 2 service 
 
----------------------------------------------------------------------------------
 
 ## Features
 ---------------------------------------------------------------------------------
