@@ -250,3 +250,113 @@ TEST_F(AutonomousDrivingTest, TestAutonomousDrivingDrivingToSuccess) {
   t.join();
   EXPECT_EQ(util_->getTaskStatus(task_id).status, "SUCCESS");
 }
+
+// -----------------------------------------------------------------------------
+// 7. engageAutoDrive(): service AVAILABLE branch
+// -----------------------------------------------------------------------------
+TEST_F(AutonomousDrivingTest, TestEngageAutoDriveServiceAvailable) {
+  // we already have a fake_autonomous_svc_ in SetUp, so wait_for_service() returns true immediately
+  EXPECT_NO_THROW( autonomous_driving_->engageAutoDrive() );
+}
+
+// Test 8: engageAutoDrive(): simulate “never available” and ensure it
+// cleanly bails out via the shutdown branch.
+TEST_F(AutonomousDrivingTest, TestEngageAutoDriveServiceUnavailable) {
+  // 1) Remove the initial fake so wait_for_service(1s) times out once:
+  fake_autonomous_svc_.reset();
+
+  // 2) After ~1.1 s, recreate the service with the proper callback signature:
+  std::thread bringup([&]() {
+    std::this_thread::sleep_for(1100ms);
+    fake_autonomous_svc_ = node->create_service<
+      autoware_adapi_v1_msgs::srv::ChangeOperationMode
+    >(
+      "/api/operation_mode/change_to_autonomous",
+      // NOTE: explicit parameter types
+      [](
+        const std::shared_ptr<rmw_request_id_t> /*req_header*/,
+        const std::shared_ptr<
+          autoware_adapi_v1_msgs::srv::ChangeOperationMode::Request
+        > /*req*/,
+        std::shared_ptr<
+          autoware_adapi_v1_msgs::srv::ChangeOperationMode::Response
+        > /*res*/
+      ) {
+        // no-op
+      }
+    );
+  });
+
+  // 3) Call engageAutoDrive(): it will log “service not available” once,
+  //    then exit cleanly when the service appears.
+  EXPECT_NO_THROW( autonomous_driving_->engageAutoDrive() );
+
+  bringup.join();
+}
+
+// -----------------------------------------------------------------------------
+// 9. operationModeStateCallback()
+// -----------------------------------------------------------------------------
+TEST_F(AutonomousDrivingTest, TestOperationModeStateCallback) {
+  autoware_adapi_v1_msgs::msg::OperationModeState msg;
+  msg.mode = autoware_adapi_v1_msgs::msg::OperationModeState::AUTONOMOUS;
+  autonomous_driving_->operationModeStateCallback(msg);
+  EXPECT_EQ( autonomous_driving_->operation_mode_state_.mode, msg.mode );
+}
+
+// -----------------------------------------------------------------------------
+// 10. vehicleMotionStateCallback()
+// -----------------------------------------------------------------------------
+TEST_F(AutonomousDrivingTest, TestVehicleMotionStateCallback) {
+  autoware_adapi_v1_msgs::msg::MotionState msg;
+  msg.state = autoware_adapi_v1_msgs::msg::MotionState::MOVING;
+  autonomous_driving_->vehicleMotionStateCallback(msg);
+  EXPECT_EQ( autonomous_driving_->vehicle_motion_state_, msg.state );
+}
+
+// -----------------------------------------------------------------------------
+// 11. routeStateCallback()
+// -----------------------------------------------------------------------------
+TEST_F(AutonomousDrivingTest, TestRouteStateCallback) {
+  autoware_adapi_v1_msgs::msg::RouteState msg;
+  msg.state = autoware_adapi_v1_msgs::msg::RouteState::ARRIVED;
+  autonomous_driving_->routeStateCallback(msg);
+  EXPECT_EQ( autonomous_driving_->route_state_, msg.state );
+}
+
+// -----------------------------------------------------------------------------
+// 12. cancelCurrentRoute(): service AVAILABLE branch
+// -----------------------------------------------------------------------------
+TEST_F(AutonomousDrivingTest, TestCancelCurrentRouteServiceAvailable) {
+  // fake_clear_route_svc_ is up in SetUp, so wait_for_service() returns true
+  EXPECT_NO_THROW( autonomous_driving_->cancelCurrentRoute() );
+}
+
+// Test 13: cancelCurrentRoute(): same pattern for the clear_route client.
+TEST_F(AutonomousDrivingTest, TestCancelCurrentRouteServiceUnavailable) {
+  fake_clear_route_svc_.reset();
+
+  std::thread bringup([&]() {
+    std::this_thread::sleep_for(1100ms);
+    fake_clear_route_svc_ = node->create_service<
+      autoware_adapi_v1_msgs::srv::ClearRoute
+    >(
+      "/api/routing/clear_route",
+      [](
+        const std::shared_ptr<rmw_request_id_t> /*req_header*/,
+        const std::shared_ptr<
+          autoware_adapi_v1_msgs::srv::ClearRoute::Request
+        > /*req*/,
+        std::shared_ptr<
+          autoware_adapi_v1_msgs::srv::ClearRoute::Response
+        > /*res*/
+      ) {
+        // no-op
+      }
+    );
+  });
+
+  EXPECT_NO_THROW( autonomous_driving_->cancelCurrentRoute() );
+
+  bringup.join();
+}

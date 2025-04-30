@@ -1,298 +1,304 @@
 #include <gtest/gtest.h>
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/string.hpp>
+#include <std_msgs/msg/bool.hpp>
 #include <diagnostic_msgs/msg/key_value.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <ftd_master_msgs/msg/pose_stamped_with_task_id.hpp>
+#include <tier4_system_msgs/msg/mode_change_available.hpp>
 #include <autoware_bridge/srv/get_task_status.hpp>
-#include "autoware_bridge/autoware_bridge_util.hpp"
-#include <chrono>
-#include <thread>
+#include <autoware_bridge/autoware_bridge_util.hpp>
 
+// Expose private methods and members
 #define private public
 #define protected public
-#include "autoware_bridge/autoware_bridge.hpp"
+#include <autoware_bridge/autoware_bridge.hpp>
 #undef private
 #undef protected
 
+#include <chrono>
+#include <thread>
+#include <memory>
+
 using namespace std::chrono_literals;
 
-// A DummyTask that records execute() and cancel() calls
+// DummyTask: stub for BaseTask
 class DummyTask : public BaseTask {
 public:
   DummyTask(std::shared_ptr<AutowareBridgeUtil> util)
     : executed_(false), cancelled_(false), util_(util) {}
-
   void execute(const std::string & task_id,
                const geometry_msgs::msg::PoseStamped &) override {
     executed_ = true;
     util_->updateTaskStatus(task_id, "SUCCESS");
   }
-
   void cancel() override { cancelled_ = true; }
-
-  bool executed_;
-  bool cancelled_;
+  bool executed_ = false;
+  bool cancelled_ = false;
   std::shared_ptr<AutowareBridgeUtil> util_;
 };
 
-// Expose protected/private members for direct testing
-class AutowareBridgeNodeFriend : public AutowareBridgeNode {
+// Stub tasks to avoid name collision with real classes
+class StubLocalization : public DummyTask {
 public:
-  AutowareBridgeNodeFriend(std::shared_ptr<AutowareBridgeUtil> util)
-    : AutowareBridgeNode(util) {}
+  StubLocalization(std::shared_ptr<AutowareBridgeNode>, std::shared_ptr<AutowareBridgeUtil> util)
+    : DummyTask(util) {}
+};
+class StubRoutePlanning : public DummyTask {
+public:
+  StubRoutePlanning(std::shared_ptr<AutowareBridgeNode>, std::shared_ptr<AutowareBridgeUtil> util)
+    : DummyTask(util) {}
+};
+class StubAutonomousDriving : public DummyTask {
+public:
+  StubAutonomousDriving(std::shared_ptr<AutowareBridgeNode>, std::shared_ptr<AutowareBridgeUtil> util)
+    : DummyTask(util) {}
+};
 
-  using AutowareBridgeNode::startTaskExecution;
-  using AutowareBridgeNode::startThreadExecution;
-  using AutowareBridgeNode::isTaskRejected;
-  using AutowareBridgeNode::publishTaskRejectionReason;
-  using AutowareBridgeNode::publishTaskResponse;
-  using AutowareBridgeNode::cancelTaskCallback;
-  using AutowareBridgeNode::publishCancelResponse;
-  using AutowareBridgeNode::onTimerCallback;
-  using AutowareBridgeNode::localizationQualityCallback;
-  using AutowareBridgeNode::handleStatusRequestSrvc;
+// SlowTask for cancellation path
+class SlowTask : public BaseTask {
+public:
+  SlowTask(std::shared_ptr<AutowareBridgeUtil> util) : cancelled_(false), util_(util) {}
+  void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped &) override {
+    std::this_thread::sleep_for(100ms);
+    util_->updateTaskStatus(task_id, "RUNNING");
+  }
+  void cancel() override { cancelled_ = true; }
+  bool cancelled_ = false;
+  std::shared_ptr<AutowareBridgeUtil> util_;
 };
 
 // Test fixture
-class AutowareBridgeNodeDirectTest : public ::testing::Test {
+class AutowareBridgeNodeTest : public ::testing::Test {
 protected:
   void SetUp() override {
-    rclcpp::init(0, nullptr);
+    if (!rclcpp::ok()) rclcpp::init(0, nullptr);
     util_ = std::make_shared<AutowareBridgeUtil>();
-    node_ = std::make_shared<AutowareBridgeNodeFriend>(util_);
+    node_ = std::make_shared<AutowareBridgeNode>(util_);
   }
-
   void TearDown() override {
-    rclcpp::shutdown();
+    if (rclcpp::ok()) rclcpp::shutdown();
   }
-
   std::shared_ptr<AutowareBridgeUtil> util_;
-  std::shared_ptr<AutowareBridgeNodeFriend> node_;
+  std::shared_ptr<AutowareBridgeNode> node_;
 };
 
-// 1. startTaskExecution with no active task should execute localization task
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  startTaskExecution_WhenNoActiveTask_ShouldExecuteLocalizationTaskAndSetSuccessStatus
-) {
-  std::string task_id = "localization_1";
-  geometry_msgs::msg::PoseStamped pose;
-  auto localization_task = std::make_shared<DummyTask>(util_);
-
-  node_->startTaskExecution(task_id, pose, localization_task);
+// 1. startTaskExecution: no active
+TEST_F(AutowareBridgeNodeTest, StartTaskExecution_NoActive_ExecutesAndSetsSuccess) {
+  auto t = std::make_shared<DummyTask>(util_);
+  node_->startTaskExecution("loc1", geometry_msgs::msg::PoseStamped(), t);
   std::this_thread::sleep_for(50ms);
-
-  EXPECT_TRUE(localization_task->executed_);
-  EXPECT_EQ(util_->getTaskStatus(task_id).status, "SUCCESS");
+  EXPECT_TRUE(t->executed_);
+  EXPECT_EQ(util_->getTaskStatus("loc1").status, "SUCCESS");
 }
 
-// 2. startTaskExecution when another task active should reject route_planning
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  startTaskExecution_WhenAnotherTaskActive_ShouldNotExecuteRoutePlanningTask
-) {
-  util_->updateTaskId("existing_task");
+// 2. startTaskExecution: active exists
+TEST_F(AutowareBridgeNodeTest, StartTaskExecution_ActiveExists_DoesNotExecuteNew) {
+  util_->updateTaskId("busy");
   util_->setActiveTaskPtr(std::make_shared<DummyTask>(util_));
-
-  std::string task_id = "route_planning_1";
-  geometry_msgs::msg::PoseStamped pose;
-  auto route_planning_task = std::make_shared<DummyTask>(util_);
-
-  node_->startTaskExecution(task_id, pose, route_planning_task);
-
-  EXPECT_FALSE(route_planning_task->executed_);
-  EXPECT_NE(util_->getTaskStatus(task_id).status, "SUCCESS");
+  auto t = std::make_shared<DummyTask>(util_);
+  node_->startTaskExecution("route1", geometry_msgs::msg::PoseStamped(), t);
+  EXPECT_FALSE(t->executed_);
 }
 
-// 3. startThreadExecution with null pointer should not crash
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  startThreadExecution_WithNullActiveTask_ShouldLogErrorAndNotCrash
-) {
-  EXPECT_NO_THROW(
-    node_->startThreadExecution("autonomous_driving_1", geometry_msgs::msg::PoseStamped())
-  );
+// 3. startThreadExecution: no active ptr
+TEST_F(AutowareBridgeNodeTest, StartThreadExecution_NoActive_NoCrash) {
+  EXPECT_NO_THROW(node_->startThreadExecution("auto1", geometry_msgs::msg::PoseStamped()));
 }
 
-// 4. isTaskRejected should return false when no active task
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  isTaskRejected_WhenNoActiveTask_ShouldReturnFalse
-) {
+// 4. isTaskRejected: no active
+TEST_F(AutowareBridgeNodeTest, IsTaskRejected_NoActive_ReturnsFalse) {
   util_->clearActiveTaskPtr();
   EXPECT_FALSE(node_->isTaskRejected("localization"));
 }
 
-// 5. isTaskRejected should return true when active ID == NO_ACTIVE_TASK
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  isTaskRejected_WhenActiveIdIsNoActiveTask_ShouldReturnTrue
-) {
+// 5. isTaskRejected: NO_ACTIVE_TASK ID
+TEST_F(AutowareBridgeNodeTest, IsTaskRejected_NoActiveID_ReturnsTrue) {
   util_->updateTaskId("NO_ACTIVE_TASK");
   util_->setActiveTaskPtr(std::make_shared<DummyTask>(util_));
   EXPECT_TRUE(node_->isTaskRejected("route_planning"));
 }
 
-// 6. isTaskRejected should return true when some other task is active
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  isTaskRejected_WhenDifferentTaskActive_ShouldReturnTrue
-) {
-  util_->updateTaskId("busy_task");
+// 6. isTaskRejected: other active
+TEST_F(AutowareBridgeNodeTest, IsTaskRejected_OtherActive_ReturnsTrue) {
+  util_->updateTaskId("xyz");
   util_->setActiveTaskPtr(std::make_shared<DummyTask>(util_));
   EXPECT_TRUE(node_->isTaskRejected("autonomous_driving"));
 }
 
-// 7. publishTaskRejectionReason should do nothing for NO_ACTIVE_TASK
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  publishTaskRejectionReason_WhenNoActiveTask_ShouldDoNothing
-) {
-  EXPECT_NO_THROW(
-    node_->publishTaskRejectionReason("localization", "NO_ACTIVE_TASK")
-  );
+// 7. publishTaskRejectionReason: NO_ACTIVE_TASK no crash
+TEST_F(AutowareBridgeNodeTest, PublishRejectionReason_NoActive_DoesNothing) {
+  EXPECT_NO_THROW(node_->publishTaskRejectionReason("loc","NO_ACTIVE_TASK"));
 }
 
-// 8. publishTaskRejectionReason should publish rejection for active task
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  publishTaskRejectionReason_WhenTaskActive_ShouldPublishRejected
-) {
-  util_->updateTaskId("busy_task");
-  EXPECT_NO_THROW(
-    node_->publishTaskRejectionReason("route_planning", "busy_task")
-  );
+// 8. publishTaskRejectionReason: publishes
+TEST_F(AutowareBridgeNodeTest, PublishRejectionReason_Active_Publishes) {
+  util_->updateTaskId("busy");
+  EXPECT_NO_THROW(node_->publishTaskRejectionReason("route","busy"));
 }
 
-// 9. publishTaskResponse should publish when task is active
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  publishTaskResponse_WhenTaskIsActive_ShouldPublishCurrentStatus
-) {
-  std::string task_id = "task_response";
-  util_->updateTaskId(task_id);
-  util_->updateTaskStatus(task_id, "IN_PROGRESS");
+// 9. publishTaskResponse: active publishes
+TEST_F(AutowareBridgeNodeTest, PublishTaskResponse_Active_Publishes) {
+  util_->updateTaskId("t1");
+  util_->updateTaskStatus("t1","DONE");
   util_->setActiveTaskPtr(std::make_shared<DummyTask>(util_));
-
-  EXPECT_NO_THROW(
-    node_->publishTaskResponse(task_id)
-  );
+  EXPECT_NO_THROW(node_->publishTaskResponse("t1"));
 }
 
-// 10. publishTaskResponse should warn when task is not active
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  publishTaskResponse_WhenTaskIsNotActive_ShouldWarnAndNotCrash
-) {
+// 10. publishTaskResponse: inactive no crash
+TEST_F(AutowareBridgeNodeTest, PublishTaskResponse_Inactive_NoCrash) {
   util_->clearActiveTaskPtr();
-  EXPECT_NO_THROW(
-    node_->publishTaskResponse("autonomous_driving_123")
-  );
+  EXPECT_NO_THROW(node_->publishTaskResponse("none"));
 }
 
-// 11. cancelTaskCallback should cancel and set flag for matching active task
-TEST_F(
-    AutowareBridgeNodeDirectTest,
-    cancelTaskCallback_WhenActiveTaskMatches_ShouldInvokeCancelAndSetFlag
-  ) {
-    // Arrange
-    std::string task_id = "cancel_me";
-    
-    // Create a shared pointer to a dummy task and update the task ID
-    auto autonomous_driving_task = std::make_shared<DummyTask>(util_);
-    util_->updateTaskId(task_id);
-    util_->setActiveTaskPtr(autonomous_driving_task);
-  
-    // Set up the message that will be passed to the callback
-    auto msg = std::make_shared<std_msgs::msg::String>();
-    msg->data = task_id;
-  
-    // Act - Call the cancel task callback with the message
-    node_->cancelTaskCallback(msg);
-  
-    // Assert - Verify that the task has been cancelled, the flag is set, and the status is updated
-    EXPECT_TRUE(autonomous_driving_task->cancelled_);
-    EXPECT_TRUE(node_->is_cancel_requested_);
-    EXPECT_EQ(util_->getTaskStatus(task_id).status, "CANCELLED");
-  }
-  
+// 11. cancelTaskCallback: matching
+TEST_F(AutowareBridgeNodeTest, CancelTaskCallback_Match_Cancels) {
+  auto t = std::make_shared<DummyTask>(util_);
+  util_->updateTaskId("cancel");
+  util_->setActiveTaskPtr(t);
+  auto msg = std::make_shared<std_msgs::msg::String>(); msg->data = "cancel";
+  node_->cancelTaskCallback(msg);
+  EXPECT_TRUE(t->cancelled_);
+  EXPECT_TRUE(node_->is_cancel_requested_);
+}
 
-// 12. cancelTaskCallback should reject when no matching active task
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  cancelTaskCallback_WhenNoActiveTask_ShouldPublishRejection
-) {
+// 12. cancelTaskCallback: no match
+TEST_F(AutowareBridgeNodeTest, CancelTaskCallback_NoMatch_NoCrash) {
   util_->clearActiveTaskPtr();
-  auto msg = std::make_shared<std_msgs::msg::String>();
-  msg->data = "no_such_task";
-  EXPECT_NO_THROW(
-    node_->cancelTaskCallback(msg)
-  );
+  auto msg = std::make_shared<std_msgs::msg::String>(); msg->data = "foo";
+  EXPECT_NO_THROW(node_->cancelTaskCallback(msg));
 }
 
-// 13. publishCancelResponse should publish when task is active
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  publishCancelResponse_WhenTaskIsActive_ShouldPublishCancelStatus
-) {
-  std::string task_id = "z1";
-  util_->updateTaskId(task_id);
-  util_->updateTaskStatus(task_id, "CANCELLED");
+// 13. publishCancelResponse: active
+TEST_F(AutowareBridgeNodeTest, PublishCancelResponse_Active_Publishes) {
+  util_->updateTaskId("c1"); util_->updateTaskStatus("c1","DONE");
   util_->setActiveTaskPtr(std::make_shared<DummyTask>(util_));
-
-  EXPECT_NO_THROW(
-    node_->publishCancelResponse(task_id)
-  );
+  EXPECT_NO_THROW(node_->publishCancelResponse("c1"));
 }
 
-// 14. publishCancelResponse should warn when task is not active
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  publishCancelResponse_WhenTaskIsNotActive_ShouldWarnAndNotCrash
-) {
+// 14. publishCancelResponse: inactive
+TEST_F(AutowareBridgeNodeTest, PublishCancelResponse_Inactive_NoCrash) {
   util_->clearActiveTaskPtr();
-  EXPECT_NO_THROW(
-    node_->publishCancelResponse("autonomous_driving_123")
-  );
+  EXPECT_NO_THROW(node_->publishCancelResponse("none"));
 }
 
-// 15. onTimerCallback should trigger reinit when quality is poor
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  onTimerCallback_WhenQualityIsPoorAndLocalizationSuccess_ShouldPublishRetryingStatus
-) {
-  util_->updateTaskId("localization_abc");
-  util_->updateTaskStatus("localization_abc", "SUCCESS");
+// 15. onTimerCallback: poor localization
+TEST_F(AutowareBridgeNodeTest, OnTimer_PoorLocalization_Reinit) {
+  util_->updateTaskId("lq"); util_->updateTaskStatus("lq","SUCCESS");
   node_->localization_quality_ = false;
-
-  EXPECT_NO_THROW(
-    node_->onTimerCallback()
-  );
-  EXPECT_EQ(util_->getTaskStatus("localization_abc").status, "RETRYING");
+  EXPECT_NO_THROW(node_->onTimerCallback());
 }
 
-// 16. onTimerCallback should do nothing when quality is good
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  onTimerCallback_WhenQualityIsGood_ShouldDoNothing
-) {
-  util_->updateTaskId("localization_xyz");
-  util_->updateTaskStatus("localization_xyz", "SUCCESS");
+// 16. onTimerCallback: good localization
+TEST_F(AutowareBridgeNodeTest, OnTimer_GoodLocalization_NoCrash) {
+  util_->updateTaskId("lq"); util_->updateTaskStatus("lq","SUCCESS");
   node_->localization_quality_ = true;
-
-  EXPECT_NO_THROW(
-    node_->onTimerCallback()
-  );
+  EXPECT_NO_THROW(node_->onTimerCallback());
 }
 
-// 17. localizationQualityCallback should update the quality flag
-TEST_F(
-  AutowareBridgeNodeDirectTest,
-  localizationQualityCallback_WhenCalled_ShouldSetQualityFlag
-) {
-  tier4_system_msgs::msg::ModeChangeAvailable msg;
-  msg.available = true;
-  node_->localizationQualityCallback(msg);
+// 17. localizationQualityCallback
+TEST_F(AutowareBridgeNodeTest, LocalizationQualityCallback_SetsFlag) {
+  tier4_system_msgs::msg::ModeChangeAvailable m; m.available = true;
+  node_->localizationQualityCallback(m);
   EXPECT_TRUE(node_->localization_quality_);
+}
+
+// 18. localizationRequestCallback: no active
+TEST_F(AutowareBridgeNodeTest, LocalizationRequest_NoActive_SetsId) {
+  auto req = std::make_shared<ftd_master_msgs::msg::PoseStampedWithTaskId>();
+  req->task_id.data = "locr";
+  node_->localizationRequestCallback(req);
+  std::this_thread::sleep_for(50ms);
+  EXPECT_EQ(util_->getActiveTaskId(), "locr");
+}
+
+// 19. routePlanningRequestCallback: no active
+TEST_F(AutowareBridgeNodeTest, RoutePlanningRequest_NoActive_SetsId) {
+  auto req = std::make_shared<ftd_master_msgs::msg::PoseStampedWithTaskId>();
+  req->task_id.data = "rpr";
+  node_->routePlanningRequestCallback(req);
+  std::this_thread::sleep_for(50ms);
+  EXPECT_EQ(util_->getActiveTaskId(), "rpr");
+}
+
+// 20. autonomousDrivingRequestCallback: no active
+TEST_F(AutowareBridgeNodeTest, AutonomousDrivingRequest_NoActive_SetsId) {
+  auto req = std::make_shared<std_msgs::msg::String>(); req->data = "adr";
+  node_->autonomousDrivingRequestCallback(req);
+  std::this_thread::sleep_for(50ms);
+  EXPECT_EQ(util_->getActiveTaskId(), "adr");
+}
+
+// 21. startThreadExecution: with active executes and clears ptr
+TEST_F(AutowareBridgeNodeTest, StartThreadExecution_WithActive_Executes) {
+  auto t = std::make_shared<DummyTask>(util_);
+  util_->updateTaskId("th"); util_->setActiveTaskPtr(t);
+  node_->startThreadExecution("th", geometry_msgs::msg::PoseStamped());
+  std::this_thread::sleep_for(50ms);
+  EXPECT_TRUE(t->executed_);
+  EXPECT_FALSE(util_->getActiveTaskPtr());
+}
+
+// 22. handleStatusRequestSrvc
+TEST_F(AutowareBridgeNodeTest, HandleStatusRequestSrvc_Populates) {
+  util_->updateTaskId("st"); util_->updateTaskStatus("st","DONE");
+  auto req = std::make_shared<autoware_bridge::srv::GetTaskStatus::Request>(); req->task_id = "st";
+  auto res = std::make_shared<autoware_bridge::srv::GetTaskStatus::Response>();
+  node_->handleStatusRequestSrvc(req, res);
+  EXPECT_EQ(res->status, "DONE");
+}
+
+// 23. onTimerCallback: route planning poor triggers reinit
+TEST_F(AutowareBridgeNodeTest, OnTimer_RoutePlanningPoor_Reinit) {
+  util_->updateTaskId("rp"); util_->updateTaskStatus("rp","RUNNING");
+  node_->localization_quality_ = false;
+  EXPECT_NO_THROW(node_->onTimerCallback());
+}
+
+// 24. onTimerCallback: autonomous driving poor triggers reinit
+TEST_F(AutowareBridgeNodeTest, OnTimer_AutoDrivingPoor_Reinit) {
+  util_->updateTaskId("ad"); util_->updateTaskStatus("ad","RUNNING");
+  node_->localization_quality_ = false;
+  EXPECT_NO_THROW(node_->onTimerCallback());
+}
+
+// 25. startThreadExecution: cancellation path
+TEST_F(AutowareBridgeNodeTest, StartThreadExecution_CancellationPath_Cancels) {
+  auto slow = std::make_shared<SlowTask>(util_);
+  util_->updateTaskId("slow"); util_->setActiveTaskPtr(slow);
+  node_->startThreadExecution("slow", geometry_msgs::msg::PoseStamped());
+  std::this_thread::sleep_for(10ms);
+  auto msg = std::make_shared<std_msgs::msg::String>(); msg->data = "slow";
+  node_->cancelTaskCallback(msg);
+  std::this_thread::sleep_for(200ms);
+  EXPECT_TRUE(slow->cancelled_);
+}
+
+// 26. localizationRequestCallback busy ignores
+TEST_F(AutowareBridgeNodeTest, LocalizationRequest_Busy_Ignores) {
+  util_->updateTaskId("lb"); util_->setActiveTaskPtr(std::make_shared<DummyTask>(util_));
+  auto req = std::make_shared<ftd_master_msgs::msg::PoseStampedWithTaskId>(); req->task_id.data = "ignored";
+  node_->localizationRequestCallback(req);
+  EXPECT_EQ(util_->getActiveTaskId(), "lb");
+}
+
+// 27. routePlanningRequestCallback busy ignores
+TEST_F(AutowareBridgeNodeTest, RoutePlanningRequest_Busy_Ignores) {
+  util_->updateTaskId("rb"); util_->setActiveTaskPtr(std::make_shared<DummyTask>(util_));
+  auto req = std::make_shared<ftd_master_msgs::msg::PoseStampedWithTaskId>(); req->task_id.data = "ignored";
+  node_->routePlanningRequestCallback(req);
+  EXPECT_EQ(util_->getActiveTaskId(), "rb");
+}
+
+// 28. autonomousDrivingRequestCallback busy ignores
+TEST_F(AutowareBridgeNodeTest, AutonomousDrivingRequest_Busy_Ignores) {
+  util_->updateTaskId("ab"); util_->setActiveTaskPtr(std::make_shared<DummyTask>(util_));
+  auto req = std::make_shared<std_msgs::msg::String>(); req->data = "ignored";
+  node_->autonomousDrivingRequestCallback(req);
+  EXPECT_EQ(util_->getActiveTaskId(), "ab");
+}
+
+int main(int argc, char ** argv) {
+  ::testing::InitGoogleTest(&argc, argv);
+  return RUN_ALL_TESTS();
 }

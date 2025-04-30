@@ -96,8 +96,8 @@ if(BUILD_TESTING)
   ament_add_gmock(test_${PROJECT_NAME}
     #test/test_autoware_bridge_util.cpp
     #test/test_localization.cpp
-    #test/test_route_planning.cpp
-    test/test_autonomous_driving.cpp
+    test/test_route_planning.cpp
+    #test/test_autonomous_driving.cpp
     #test/test_autoware_bridge.cpp
   )
   if(TARGET test_${PROJECT_NAME})
