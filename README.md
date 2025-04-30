@@ -13,27 +13,27 @@ It handles:
 
 
 ## Features
----------------------------------------------------------------------------------
+
 - **Localization**, **Route Planning**, and **Autonomous Driving** task handling
 - Task rejection if another task is already running
 - Publish task status and cancellation responses
 - Automatic reinitialization requests when localization quality degrades
 - ROS 2 service to query current task status
 
----------------------------------------------------------------------------------
+
 
 ## Requirements
----------------------------------------------------------------------------------
+
 - ROS 2 Humble (or later)
 - C++
 - Dependencies listed in [`package.xml`](package.xml):
   - `rclcpp`, `std_msgs`, `geometry_msgs`, `diagnostic_msgs`, `ftd_master_msgs`, `tier4_system_msgs`
   - `ament_cmake`, `ament_lint_auto`, etc.
 
----------------------------------------------------------------------------------
+
 
 ## Installation & Build
----------------------------------------------------------------------------------
+
 ```bash
 # Clone standalone
 git clone git@github.com:Futu-reADS/autoware_bridge.git
@@ -48,10 +48,10 @@ rosdep install --from-paths src --ignore-src -r -y
 
 # Build
 colcon build --packages-select autoware_bridge --cmake-clean-cache
----------------------------------------------------------------------------------
 
-## Usages
----------------------------------------------------------------------------------
+
+## Usage
+
 - Source your workspace:
   source ~/your_ws/install/setup.bash
 - Launch the bridge node standalone 
@@ -64,7 +64,7 @@ colcon build --packages-select autoware_bridge --cmake-clean-cache
 - Query status via service:
   ros2 service call /check_task_status autoware_bridge/srv/GetTaskStatus "{ task_id: 'localization_xx' }"
 
----------------------------------------------------------------------------------
+
 
 ## Testing
 ---------------------------------------------------------------------------------
@@ -85,6 +85,7 @@ This package includes a comprehensive ament_gtest suite under test/. To run all 
 
 Recomended: run one class test at a time by commenting out all other classes in CMakeLists.txt
 ---------------------------------------------------------------------------------
+
 
 ##Contributing
 ---------------------------------------------------------------------------------
