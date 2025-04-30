@@ -88,7 +88,7 @@ colcon build --packages-select autoware_bridge --cmake-clean-cache
    ros2 service call /check_task_status autoware_bridge/srv/GetTaskStatus "{ task_id: 'loc1' }"
    ```
 
-## Testing
+## Testing(GTEST)
 
 ```bash
   This package includes a comprehensive ament_gtest suite under test/. To run all tests:
@@ -104,7 +104,10 @@ colcon build --packages-select autoware_bridge --cmake-clean-cache
   lcov --remove coverage.info '/usr/*' '*/test/*' --output-file coverage_filtered.info
   lcov --extract coverage_filtered.info '*/autoware_bridge/src/*.cpp' --output-file autoware_bridge_src.info
   genhtml autoware_bridge_src.info --output-directory autoware_bridge_src_report
-  xdg-open autoware_bridge_src_report/index.html 
+  xdg-open autoware_bridge_src_report/index.html
+
+Sample:
+![Test Results](assets/test_results.png)
 
 Recomended: run one class test at a time by commenting out all other classes in CMakeLists.txt
 ```
