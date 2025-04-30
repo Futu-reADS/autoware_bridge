@@ -106,11 +106,9 @@ colcon build --packages-select autoware_bridge --cmake-clean-cache
   genhtml autoware_bridge_src.info --output-directory autoware_bridge_src_report
   xdg-open autoware_bridge_src_report/index.html
 
-Sample:
-![Test Results](assets/test_results.png)
-
 Recomended: run one class test at a time by commenting out all other classes in CMakeLists.txt
 ```
+![Test Results](assets/test_results.png)
 
 ## Contributing
 
