@@ -204,14 +204,18 @@ void AutowareBridgeNode::publishTaskResponse(const std::string & task_id)
 
 void AutowareBridgeNode::cancelTaskCallback(const std_msgs::msg::String::SharedPtr msg)
 {
+  RCLCPP_INFO(this->get_logger(), "CANCEL TASK CALLBACK");
   std::lock_guard<std::mutex> lock(task_mutex_);
   std::string requested_task_id = msg->data;
   std::shared_ptr<BaseTask> active_task_ptr = autoware_bridge_util_->getActiveTaskPtr();
   if (autoware_bridge_util_->isTaskActive(requested_task_id) && active_task_ptr) {
     is_cancel_requested_ = true;
+    RCLCPP_INFO(this->get_logger(), "CANCEL TASK CALLBACK true");
     active_task_ptr->cancel();
   } else {
     //autoware_bridge_msgs::msg::TaskStatusResponse cancel_response;
+    RCLCPP_INFO(
+      this->get_logger(), "Requested task_id: %s is not the active one to cancel.", requested_task_id.c_str());
     diagnostic_msgs::msg::KeyValue cancel_response;
     cancel_response.key = requested_task_id;
     cancel_response.value = "REJECTED";
@@ -226,7 +230,7 @@ void AutowareBridgeNode::publishCancelResponse(const std::string & task_id)
     //autoware_bridge_msgs::msg::TaskStatusResponse cancel_response;
     diagnostic_msgs::msg::KeyValue cancel_response;
     cancel_response.key = task_id;
-    cancel_response.value = task_info.status;
+    cancel_response.value = task_info.cancel_status;
     cancel_response_publisher_->publish(cancel_response);
   } else {
     RCLCPP_WARN(
