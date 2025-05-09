@@ -53,7 +53,7 @@ void AutowareBridgeUtil::updateTaskStatus(const std::string & task_id, const std
   } else if (status == "SUCCESS") {
     updateTask(task_id, TaskRequestType::CANCEL_STATUS, "FAILED_DUE_TO_TASK_SUCCESS");
   } else if (status == "CANCELLED") {
-    updateTask(task_id, TaskRequestType::CANCEL_STATUS, "CANCELLED");
+    updateTask(task_id, TaskRequestType::CANCEL_STATUS, "SUCCESS");
   }
 }
 
