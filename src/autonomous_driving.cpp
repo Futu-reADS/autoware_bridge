@@ -56,7 +56,7 @@ void AutonomousDriving::execute(
     if (timeout) {
       // TIMEOUT
       autoware_bridge_util_->updateTaskStatus(task_id, "TIMEOUT");
-      RCLCPP_ERROR(node_->get_logger(), "Driving task %s timeout.", task_id.c_str());
+      RCLCPP_ERROR_THROTTLE(node_->get_logger(), *node_->get_clock(), 1000, "Driving task %s timeout.", task_id.c_str());
       break;
     }
 
@@ -92,7 +92,7 @@ void AutonomousDriving::execute(
         else if (
           node_->get_clock()->now().seconds() - driving_start_time_.seconds() >
           DRIVE_WAIT_TIMEOUT_S) {
-          RCLCPP_ERROR(node_->get_logger(), "Driving error, timeout expired");
+          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *node_->get_clock(), 1000, "Driving error, timeout expired");
           state_ = AutonomousDrivingTaskState::ENGAGE_AUTO_DRIVE;
         }
         break;
@@ -103,7 +103,7 @@ void AutonomousDriving::execute(
           if (
             halt_start_time_.seconds() > 0 &&
             node_->get_clock()->now().seconds() - halt_start_time_.seconds() > MAX_EGO_HALT_TIME) {
-            RCLCPP_WARN(node_->get_logger(), "HALT: 60 seconds elapsed while stopped.");
+            RCLCPP_WARN_THROTTLE(node_->get_logger(), *node_->get_clock(), 1000, "HALT: 60 seconds elapsed while stopped.");
             // Handle HALT logic: re-engage, retry, or reset
             autoware_bridge_util_->updateTaskStatus(task_id, "HALTED");
           }
