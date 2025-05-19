@@ -60,6 +60,7 @@ jobs:
           sudo curl -vSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
           sudo apt-get update
+          sudo apt-get upgrade
           sudo apt-get install ros-humble-ros-base
           sudo apt-get install ros-dev-tools
           sudo apt-get install ros-humble-autoware-common-msgs
@@ -77,11 +78,11 @@ jobs:
         run: |
           . /opt/ros/humble/setup.sh
           cd autoware_bridge
-          vcs import --debug --recursive src < ../autoware.FTD/autoware.repos
+          vcs import --recursive src < ../autoware.FTD/autoware.repos
           vcs pull
           sudo rosdep init || true
           rosdep update
-          rosdep install --from-paths src --ignore-src -r -y
+          rosdep install --verbose --from-paths src --ignore-src -r -y
           ( \
             for PKG in \
                 autoware_auto_msgs \
