@@ -77,7 +77,7 @@ jobs:
         run: |
           . /opt/ros/humble/setup.sh
           cd autoware_bridge
-          vcs import --debug --recursive src
+          vcs import --debug --recursive src < ../autoware.FTD/autoware.repos
           vcs pull
           sudo rosdep init || true
           rosdep update
