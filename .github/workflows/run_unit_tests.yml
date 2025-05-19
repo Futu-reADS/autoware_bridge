@@ -64,6 +64,10 @@ jobs:
           sudo apt-get install ros-humble-ros-base
           sudo apt-get install ros-dev-tools
           sudo apt-get install ros-humble-autoware-common-msgs
+          ### For debugging for libgoogle-glog-dev
+          sudo apt-get install -y libunwind-dev
+          ### For debugging for ros-humble-sophus
+          sudo apt-cache show "*sophus"
 
       # 1-4.
       - name: Configure SSH key pair
