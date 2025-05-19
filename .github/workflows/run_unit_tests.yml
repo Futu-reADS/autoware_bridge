@@ -65,13 +65,19 @@ jobs:
           sudo apt-get install ros-humble-autoware-common-msgs
 
       # 1-4.
+      - name: Configure SSH key pair
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      # 1-5.
       - name: Build dependent modules
         run: |
           . /opt/ros/humble/setup.sh
           cd autoware_bridge
-          sed 's/url:[[:space:]]*git@github\.com:/url: https:\/\/github.com\//' \
-            ../autoware.FTD/autoware.repos \
-            | vcs import --recursive src
+          vcs import --debug --recursive src
           vcs pull
           sudo rosdep init || true
           rosdep update
@@ -86,31 +92,25 @@ jobs:
                 autoware_bridge_msgs \
                 ftd_master_msgs; do
               find src \
-                -type d \
-                -name "$PKG" \
+                -type f \
+                -path "*/$PKG/CMakeLists.txt" \
                 -ls \
-                -execdir sh -xc '
-                  find '"$PKG"' \
-                    -type f \
-                    -regex "\\(.*/\\|\\)'"$PKG"'/CMakeLists.txt" \
-                    -ls \
-                    -execdir cmake . \; \
-                    -execdir make clean \; \
-                    -execdir make \; \
-                    -execdir sudo make install \; \
-                    -quit' \; \
-                -quit || exit 1
+                -execdir cmake . \; \
+                -execdir make clean \; \
+                -execdir make \; \
+                -execdir sudo make install \; \
+                -true || exit 1
             done
           )
 
-      # 1-5.
+      # 1-6.
       - name: Build
         run: |
           . /opt/ros/humble/setup.sh
           cd autoware_bridge
           colcon build --packages-select autoware_bridge --cmake-clean-cache
 
-      # 1-6.
+      # 1-7.
       - name: Run all unit tests
         run: |
           . /opt/ros/humble/setup.sh
@@ -119,7 +119,7 @@ jobs:
           colcon test --packages-select autoware_bridge
           colcon test-result --verbose
 
-      # 1-7.
+      # 1-8.
       - name: Output coverage information
         run: |
           . /opt/ros/humble/setup.sh
