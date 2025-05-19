@@ -83,7 +83,7 @@ jobs:
           vcs pull
           sudo rosdep init || true
           rosdep update
-          rosdep install --verbose --from-paths src --ignore-src -r -y
+          rosdep install --from-paths src --ignore-src -r -y
           ( \
             for PKG in \
                 autoware_auto_msgs \
@@ -108,6 +108,9 @@ jobs:
           sh -xc "ls -l /usr/local/lib"
           sh -xc "file /usr/local/lib/*.so"
           ldconfig -p
+          find /etc/ld.so.conf* -type f -ls -exec nl -ba '{}' \;
+          env | grep -F 'LD_' || true
+          sudo ldconfig -v /usr/local/lib
 
       # 1-6.
       - name: Build
