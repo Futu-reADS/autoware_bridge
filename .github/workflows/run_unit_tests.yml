@@ -104,12 +104,6 @@ jobs:
                 -true || exit 1
             done
           )
-          ### Debugging /usr/local/lib
-          sh -xc "ls -l /usr/local/lib"
-          sh -xc "file /usr/local/lib/*.so"
-          ldconfig -p
-          find /etc/ld.so.conf* -type f -ls -exec nl -ba '{}' \;
-          env | grep -F 'LD_' || true
           sudo ldconfig -v /usr/local/lib
 
       # 1-6.
