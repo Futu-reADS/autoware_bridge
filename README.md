@@ -46,13 +46,21 @@
 
 ```bash
 # Clone into your workspace
-# Clone standalone
+# Clone standalone via SSH
 git clone git@github.com:Futu-reADS/autoware_bridge.git
+# Or, you can git clone via HTTPS as well
+git clone https://github.com/Futu-reADS/autoware_bridge.git
 
-#clone via autoware.repos 
--Please make entry in autoware.repos present inside autoware.FTD in proper format (following others)
--vcs import src < autoware.repos --recursive
--vcs pull 
+# Clone via autoware.repos
+# Please make entry in autoware.repos present inside autoware.FTD in proper format (following others)
+# Using SSH (needs SSH key pair),
+vcs import --recursive src < {WHERE-autoware.FTD-IS}/autoware.repos
+# Or, using HTTPS (needs GitHub Personal Access Token),
+sed 's/url:[[:space:]]*git@github\.com:/url: https:\/\/github.com\//' \
+  {WHERE-autoware.FTD-IS}/autoware.repos \
+  | vcs import --recursive src
+# Update
+vcs pull
 
 # Install dependencies
 rosdep install --from-paths src --ignore-src -r -y
