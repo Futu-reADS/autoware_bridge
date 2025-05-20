@@ -48,11 +48,11 @@ jobs:
           sparse-checkout-cone-mode: false
           path: autoware.FTD
       - run: |
-        cd autoware.FTD
-        git checkout HEAD^
+          cd autoware.FTD
+          git checkout HEAD^
 
       # 1-3.
-      - name: Set up ROS 2 Humble developping envrionment
+      - name: Set up ROS 2 Humble development envrionment
         run: |
           export LC_ALL=en_US.UTF-8
           sudo apt-get install software-properties-common
@@ -60,18 +60,26 @@ jobs:
           sudo curl -vSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
           sudo apt-get update
+          sudo apt-get upgrade
           sudo apt-get install ros-humble-ros-base
           sudo apt-get install ros-dev-tools
           sudo apt-get install ros-humble-autoware-common-msgs
+          sudo apt-get install libunwind-dev
 
       # 1-4.
+      - name: Configure SSH key pair
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      # 1-5.
       - name: Build dependent modules
         run: |
-          . /opt/ros/humble/setup.sh
+          source /opt/ros/humble/setup.bash
           cd autoware_bridge
-          sed 's/url:[[:space:]]*git@github\.com:/url: https:\/\/github.com\//' \
-            ../autoware.FTD/autoware.repos \
-            | vcs import --recursive src
+          vcs import --recursive src < ../autoware.FTD/autoware.repos
           vcs pull
           sudo rosdep init || true
           rosdep update
@@ -86,43 +94,37 @@ jobs:
                 autoware_bridge_msgs \
                 ftd_master_msgs; do
               find src \
-                -type d \
-                -name "$PKG" \
+                -type f \
+                -path "*/$PKG/CMakeLists.txt" \
                 -ls \
-                -execdir sh -xc '
-                  find '"$PKG"' \
-                    -type f \
-                    -regex "\\(.*/\\|\\)'"$PKG"'/CMakeLists.txt" \
-                    -ls \
-                    -execdir cmake . \; \
-                    -execdir make clean \; \
-                    -execdir make \; \
-                    -execdir sudo make install \; \
-                    -quit' \; \
-                -quit || exit 1
+                -execdir cmake . \; \
+                -execdir make clean \; \
+                -execdir make \; \
+                -execdir sudo make install \; \
+                -true || exit 1
             done
           )
-
-      # 1-5.
-      - name: Build
-        run: |
-          . /opt/ros/humble/setup.sh
-          cd autoware_bridge
-          colcon build --packages-select autoware_bridge --cmake-clean-cache
+          sudo ldconfig -v /usr/local/lib
 
       # 1-6.
-      - name: Run all unit tests
+      - name: Build
         run: |
-          . /opt/ros/humble/setup.sh
+          source /opt/ros/humble/setup.bash
           cd autoware_bridge
           colcon build --packages-select autoware_bridge --cmake-clean-cache
+
+      # 1-7.
+      - name: Run all unit tests
+        run: |
+          source /opt/ros/humble/setup.bash
+          cd autoware_bridge
           colcon test --packages-select autoware_bridge
           colcon test-result --verbose
 
-      # 1-7.
+      # 1-8.
       - name: Output coverage information
         run: |
-          . /opt/ros/humble/setup.sh
+          source /opt/ros/humble/setup.bash
           cd autoware_bridge
           lcov --capture --directory build/autoware_bridge --output-file coverage.info
           lcov --remove coverage.info '/usr/*' '*/test/*' --output-file coverage_filtered.info
