@@ -18,8 +18,8 @@
 
 enum class LocalizationTaskState { INITIALIZATION, LOCALIZATION, LOCALIZATION_CHECK };
 
-const double LOC_WAIT_TIMEOUT_S = 10.0;
-const int MAX_INIT_RETRIES = 2;
+const double LOC_WAIT_TIMEOUT_S = 1.5;
+const int MAX_INIT_RETRIES = 10;
 
 class Localization : public BaseTask
 {
