@@ -17,7 +17,7 @@ Localization::Localization(
     node_->create_publisher<PoseWithCovarianceStamped>("/initialpose", 10);
 
   localization_state_subscriber_ = node_->create_subscription<LocalizationInitializationState>(
-    "/api/localization/initialization_state", 10,
+    "/api/localization/initialization_state", rclcpp::QoS(1).transient_local(),
     std::bind(&Localization::localizationStateCallback, this, std::placeholders::_1));
 
   localization_quality_subscriber_ = node_->create_subscription<ModeChangeAvailable>(
@@ -104,7 +104,7 @@ void Localization::execute(
             RCLCPP_INFO(node_->get_logger(), "[AVI5] Localization state: %d", localization_state_);
             break;
           default:
-            //RCLCPP_INFO(node_->get_logger(), "[AVI6] Localization state: %d", localization_state_);
+            RCLCPP_INFO_THROTTLE(node_->get_logger(), *node_->get_clock(), 500, "[AVI6] Localization state: %d", localization_state_);
             // This may lead to busy loop , is there any other thing which we can do here?
             break;
         }
@@ -195,4 +195,6 @@ void Localization::sendCmdGate()
   tier4_control_msgs::msg::GateMode mode_msg;
   mode_msg.data = tier4_control_msgs::msg::GateMode::AUTO;
   current_gate_mode_publisher_->publish(mode_msg);
+  RCLCPP_INFO(node_->get_logger(), "Sending cmd_gate");
+
 }
