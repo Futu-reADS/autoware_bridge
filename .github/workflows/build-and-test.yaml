@@ -64,11 +64,12 @@ jobs:
           nl -ba ~/.ssh/known_hosts || true
           ssh-keyscan github.com > ~/.ssh/known_hosts
           nl -ba ~/.ssh/known_hosts || true
-          ssh -T github.com || true
+          ssh -vT git@github.com || true
           echo "Host github.com" > ~/.ssh/config
           echo "  IdentityFile ~/.ssh/id_rsa" >> ~/.ssh/config
           echo "  StrictHostKeyChecking no" >> ~/.ssh/config
-          ssh -T github.com || true
+          ssh -vT git@github.com || true
+          ssh -i ~/.ssh/id_rsa -vT git@github.com || true
           nl -ba ~/.ssh/config
           ls -lR ~/.ssh
 
