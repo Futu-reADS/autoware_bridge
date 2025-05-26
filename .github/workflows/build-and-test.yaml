@@ -56,23 +56,17 @@ jobs:
 
       - name: Configure SSH key pair
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          nl -ba ~/.ssh/known_hosts || true
+          sudo mkdir -p ~root/.ssh
+          sudo echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~root/.ssh/id_rsa
+          sudo chmod 600 ~root/.ssh/id_rsa
+          sudo nl -ba ~root/.ssh/known_hosts || true
           type ssh-keyscan || sudo apt-get install -y openssh-client
-          nl -ba ~/.ssh/known_hosts || true
-          ssh-keyscan github.com > ~/.ssh/known_hosts
-          nl -ba ~/.ssh/known_hosts || true
+          sudo nl -ba ~root/.ssh/known_hosts || true
+          sudo ssh-keyscan github.com > ~root/.ssh/known_hosts
+          sudo nl -ba ~root/.ssh/known_hosts || true
           ssh -vT git@github.com || true
-          echo "Host github.com" > ~/.ssh/config
-          echo "  IdentityFile ~/.ssh/id_rsa" >> ~/.ssh/config
-          echo "  StrictHostKeyChecking no" >> ~/.ssh/config
-          ssh -vT git@github.com || true
-          ssh -i ~/.ssh/id_rsa -vT git@github.com || true
-          nl -ba ~/.ssh/config
-          ls -lR ~/.ssh
-          env
+          sudo ssh -i ~root/.ssh/id_rsa -vT git@github.com || true
+          sudo ls -lR ~root/.ssh
 
       - name: Check build_depends.repos
         id: check-file
