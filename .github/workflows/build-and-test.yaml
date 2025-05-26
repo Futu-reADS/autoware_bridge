@@ -50,7 +50,8 @@ jobs:
         with:
           rosdistro: ${{ matrix.rosdistro }}
           target-packages: ${{ steps.get-self-packages.outputs.self-packages }}
-          build-depends-repos: ${{ matrix.build-depends-repos }}
+          ### # Tentatively commented out, to check if automatically resolvable
+          ### build-depends-repos: ${{ matrix.build-depends-repos }}
 
       - name: Test
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
@@ -59,7 +60,8 @@ jobs:
         with:
           rosdistro: ${{ matrix.rosdistro }}
           target-packages: ${{ steps.get-self-packages.outputs.self-packages }}
-          build-depends-repos: ${{ matrix.build-depends-repos }}
+          ### # Tentatively commented out, to check if automatically resolvable
+          ### build-depends-repos: ${{ matrix.build-depends-repos }}
 
       ### - name: Upload coverage to CodeCov
       ###   if: ${{ steps.test.outputs.coverage-report-files != '' }}
