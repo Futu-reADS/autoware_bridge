@@ -43,7 +43,8 @@ jobs:
           apt-cache pkgnames
           apt-cache search '.*ssh-keyscan.*' || true
           dpkg -L openssh-client || true
-          sudo apt-get install openssh-client || true
+          apt list --installed || true
+          sudo apt-get install -y openssh-client || true
 
       - name: Remove exec_depend
         uses: autowarefoundation/autoware-github-actions/remove-exec-depend@v1
