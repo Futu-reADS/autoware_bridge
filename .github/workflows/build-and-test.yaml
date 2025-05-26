@@ -40,7 +40,25 @@ jobs:
         id: get-self-packages
         uses: autowarefoundation/autoware-github-actions/get-self-packages@v1
 
+      - name: Configure SSH key pair
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chomod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Check build_depends.repos
+        id: check_file
+        run: |
+          if [ -f build_depends.repos ]; then
+            echo "::set-output name=build_depends_repos_exists::true"
+          else
+            echo "::set-output name=build_depends_repos_exists::false"
+          fi
+          ls -lR
+
       - name: Check out our latest autoware.repos
+        if: ${{ steps.check_file.outputs.build_depends_repos_exists == 'true' }}
         uses: actions/checkout@v4
         with:
           repository: Futu-reADS/autoware.FTD
@@ -52,9 +70,7 @@ jobs:
       - run: |
           cd autoware.FTD
           git checkout HEAD^
-          if [ ! -f ../build_depends.repos ]; then
-            cp autoware.repos ../build_depends.repos
-          fi
+          cp autoware.repos ../build_depends.repos
           touch AMENT_IGNORE COLCON_IGNORE
           ls -lR
 
