@@ -40,8 +40,11 @@ jobs:
       - name: Debug
         run: |
           ls -l /etc/resolv.conf && nl -ba /etc/resolv.conf || true
+          type dig || sudo apt-get install -y bind9-dnsutils
           dig github.com || true
+          type ip || sudo apt-get install -y iproute2
           ip addr || ifconfig || true
+          type systemctl || sudo apt-get install -y systemctl
           systemctl status 'network*' || true
 
       - name: Remove exec_depend
