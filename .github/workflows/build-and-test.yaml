@@ -33,19 +33,19 @@ jobs:
       - name: Show disk space before the tasks
         run: df -h
 
-      - name: Install dependencies
-        run: |
-          apt-get update
+      ### - name: Install dependencies
+      ###   run: |
+      ###     apt-get update
 
-      - name: Debug
-        run: |
-          ls -l /etc/resolv.conf && nl -ba /etc/resolv.conf || true
-          type dig || sudo apt-get install -y bind9-dnsutils
-          dig github.com || true
-          type ip || sudo apt-get install -y iproute2
-          ip addr || ifconfig || true
-          type systemctl || sudo apt-get install -y systemctl
-          systemctl status 'network*' || true
+      ### - name: Debug
+      ###   run: |
+      ###     ls -l /etc/resolv.conf && nl -ba /etc/resolv.conf || true
+      ###     type dig || sudo apt-get install -y bind9-dnsutils
+      ###     dig github.com || true
+      ###     type ip || sudo apt-get install -y iproute2
+      ###     ip addr || ifconfig || true
+      ###     type systemctl || sudo apt-get install -y systemctl
+      ###     systemctl status 'network*' || true
 
       - name: Remove exec_depend
         uses: autowarefoundation/autoware-github-actions/remove-exec-depend@v1
@@ -54,19 +54,19 @@ jobs:
         id: get-self-packages
         uses: autowarefoundation/autoware-github-actions/get-self-packages@v1
 
-      - name: Configure SSH key pair
-        run: |
-          sudo mkdir -p ~root/.ssh
-          sudo echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~root/.ssh/id_rsa
-          sudo chmod 600 ~root/.ssh/id_rsa
-          sudo nl -ba ~root/.ssh/known_hosts || true
-          type ssh-keyscan || sudo apt-get install -y openssh-client
-          sudo nl -ba ~root/.ssh/known_hosts || true
-          sudo ssh-keyscan github.com > ~root/.ssh/known_hosts
-          sudo nl -ba ~root/.ssh/known_hosts || true
-          ssh -vT git@github.com || true
-          sudo ssh -i ~root/.ssh/id_rsa -vT git@github.com || true
-          sudo ls -lR ~root/.ssh
+      ### - name: Configure SSH key pair
+      ###   run: |
+      ###     sudo mkdir -p ~root/.ssh
+      ###     sudo echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~root/.ssh/id_rsa
+      ###     sudo chmod 600 ~root/.ssh/id_rsa
+      ###     sudo nl -ba ~root/.ssh/known_hosts || true
+      ###     type ssh-keyscan || sudo apt-get install -y openssh-client
+      ###     sudo nl -ba ~root/.ssh/known_hosts || true
+      ###     sudo ssh-keyscan github.com > ~root/.ssh/known_hosts
+      ###     sudo nl -ba ~root/.ssh/known_hosts || true
+      ###     ssh -vT git@github.com || true
+      ###     sudo ssh -i ~root/.ssh/id_rsa -vT git@github.com || true
+      ###     sudo ls -lR ~root/.ssh
 
       - name: Check build_depends.repos
         id: check-file
@@ -91,10 +91,10 @@ jobs:
           cp autoware.repos ../build_depends.repos
           touch AMENT_IGNORE COLCON_IGNORE
 
-      - name: Debug vcs
-        run: |
-          mkdir -p dependency_ws
-          vcs import --debug dependency_ws < build_depends.repos || true
+      ### - name: Debug vcs
+      ###   run: |
+      ###     mkdir -p dependency_ws
+      ###     vcs import --debug dependency_ws < build_depends.repos || true
 
       - name: Build
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
@@ -103,6 +103,7 @@ jobs:
           rosdistro: ${{ matrix.rosdistro }}
           target-packages: ${{ steps.get-self-packages.outputs.self-packages }}
           build-depends-repos: ${{ matrix.build-depends-repos }}
+          token: ${{ secrets.UNITTEST_WORKFLOW_TOKEN }}
 
       - name: Test
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
@@ -112,6 +113,7 @@ jobs:
           rosdistro: ${{ matrix.rosdistro }}
           target-packages: ${{ steps.get-self-packages.outputs.self-packages }}
           build-depends-repos: ${{ matrix.build-depends-repos }}
+          token: ${{ secrets.UNITTEST_WORKFLOW_TOKEN }}
 
       ### - name: Upload coverage to CodeCov
       ###   if: ${{ steps.test.outputs.coverage-report-files != '' }}
