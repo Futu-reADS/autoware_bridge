@@ -72,6 +72,7 @@ jobs:
           ssh -i ~/.ssh/id_rsa -vT git@github.com || true
           nl -ba ~/.ssh/config
           ls -lR ~/.ssh
+          env
 
       - name: Check build_depends.repos
         id: check-file
