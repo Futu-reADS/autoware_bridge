@@ -91,10 +91,12 @@ jobs:
           cp autoware.repos ../build_depends.repos
           touch AMENT_IGNORE COLCON_IGNORE
 
-      ### - name: Debug vcs
-      ###   run: |
-      ###     mkdir -p dependency_ws
-      ###     vcs import --debug dependency_ws < build_depends.repos || true
+      - name: Debug colcon build
+        run: |
+          mkdir -p dependency_ws
+          vcs import dependency_ws < build_depends.repos || true
+          ls -lR dependency_ws
+          sudo apt-get install -y ros-humble-autoware-adapi-v1-msgs
 
       - name: Build
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
