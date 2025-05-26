@@ -40,8 +40,22 @@ jobs:
         id: get-self-packages
         uses: autowarefoundation/autoware-github-actions/get-self-packages@v1
 
-      - name: Debug here
-        run: |
+      - name: Check out our latest autoware.repos
+        uses: actions/checkout@v4
+        with:
+          repository: Futu-reADS/autoware.FTD
+          fetch-depth: 2
+          sparse-checkout: |
+            autoware.repos
+          sparse-checkout-cone-mode: false
+          path: autoware.FTD
+      - run: |
+          cd autoware.FTD
+          git checkout HEAD^
+          if [ ! -f ../build_depends.repos ]; then
+            cp autoware.repos ../build_depends.repos
+          fi
+          touch AMENT_IGNORE COLCON_IGNORE
           ls -lR
 
       - name: Build
@@ -50,8 +64,7 @@ jobs:
         with:
           rosdistro: ${{ matrix.rosdistro }}
           target-packages: ${{ steps.get-self-packages.outputs.self-packages }}
-          ### # Tentatively commented out, to check if automatically resolvable
-          ### build-depends-repos: ${{ matrix.build-depends-repos }}
+          build-depends-repos: ${{ matrix.build-depends-repos }}
 
       - name: Test
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
@@ -60,8 +73,7 @@ jobs:
         with:
           rosdistro: ${{ matrix.rosdistro }}
           target-packages: ${{ steps.get-self-packages.outputs.self-packages }}
-          ### # Tentatively commented out, to check if automatically resolvable
-          ### build-depends-repos: ${{ matrix.build-depends-repos }}
+          build-depends-repos: ${{ matrix.build-depends-repos }}
 
       ### - name: Upload coverage to CodeCov
       ###   if: ${{ steps.test.outputs.coverage-report-files != '' }}
