@@ -61,6 +61,7 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           type ssh-keyscan || sudo apt-get install -y openssh-client
           ssh-keyscan github.com >> ~/.ssh/known_hosts
+          ssh -T github.com || true
           ls -lR ~/.ssh
 
       - name: Check build_depends.repos
