@@ -33,9 +33,13 @@ jobs:
       - name: Show disk space before the tasks
         run: df -h
 
+      - name: Install dependencies
+        run: |
+          apt-get update
+
       - name: Debug ssh-keyscan
         run: |
-          apt-add-repository -L
+          apt-add-repository -L || true
           apt-cache pkgnames
           apt-cache search '.*ssh-keyscan.*' || true
           dpkg -L openssh-client || true
