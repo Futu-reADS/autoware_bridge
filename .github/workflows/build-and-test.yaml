@@ -37,15 +37,6 @@ jobs:
         run: |
           apt-get update
 
-      - name: Debug ssh-keyscan
-        run: |
-          apt-add-repository -L || true
-          apt-cache pkgnames
-          apt-cache search '.*ssh-keyscan.*' || true
-          dpkg -L openssh-client || true
-          apt list --installed || true
-          sudo apt-get install -y openssh-client || true
-
       - name: Remove exec_depend
         uses: autowarefoundation/autoware-github-actions/remove-exec-depend@v1
 
@@ -58,13 +49,9 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          type ssh-keyscan || {
-            apt-cache pkgnames
-            apt-cache search '.*ssh-keyscan.*'
-            dpkg -L openssh-client
-            sudo apt-get install openssh-client
-          }
+          type ssh-keyscan || sudo apt-get install -y openssh-client
           ssh-keyscan github.com >> ~/.ssh/known_hosts
+          ls -lR ~/.ssh
 
       - name: Check build_depends.repos
         id: check-file
@@ -92,6 +79,11 @@ jobs:
           cp autoware.repos ../build_depends.repos
           touch AMENT_IGNORE COLCON_IGNORE
           ls -lR
+
+      - name: Debug vcs
+        run: |
+          mkdir -p dependency_ws
+          vcs import --debug dependency_ws < build_depends.repos
 
       - name: Build
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
