@@ -57,11 +57,10 @@ jobs:
         id: check-file
         run: |
           if [ -f build_depends.repos ]; then
-            echo "::set-output name=build_depends_repos::true"
+            echo "build_depends_repos=true" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=build_depends_repos::false"
+            echo "build_depends_repos=false" >> $GITHUB_OUTPUT
           fi
-          ls -lR
 
       - name: Copy our latest autoware.repos
         if: ${{ steps.check-file.outputs.build_depends_repos != 'true' }}
@@ -78,12 +77,11 @@ jobs:
           git checkout HEAD^
           cp autoware.repos ../build_depends.repos
           touch AMENT_IGNORE COLCON_IGNORE
-          ls -lR
 
       - name: Debug vcs
         run: |
           mkdir -p dependency_ws
-          vcs import --debug dependency_ws < build_depends.repos
+          vcs import --debug dependency_ws < build_depends.repos || true
 
       - name: Build
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
