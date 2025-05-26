@@ -59,8 +59,10 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
+          nl -ba ~/.ssh/known_hosts || true
           type ssh-keyscan || sudo apt-get install -y openssh-client
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          ssh-keyscan github.com > ~/.ssh/known_hosts
+          nl -ba ~/.ssh/known_hosts || true
           ssh -T github.com || true
           ls -lR ~/.ssh
 
