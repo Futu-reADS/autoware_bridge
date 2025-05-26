@@ -33,6 +33,13 @@ jobs:
       - name: Show disk space before the tasks
         run: df -h
 
+      - name: Debug ssh-keyscan
+        run: |
+          apt-cache pkgnames
+          apt-cache search '.*ssh-keyscan.*' || true
+          dpkg -L openssh-client || true
+          sudo apt-get install openssh-client || true
+
       - name: Remove exec_depend
         uses: autowarefoundation/autoware-github-actions/remove-exec-depend@v1
 
@@ -46,6 +53,7 @@ jobs:
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           type ssh-keyscan || {
+            apt-cache pkgnames
             apt-cache search '.*ssh-keyscan.*'
             dpkg -L openssh-client
             sudo apt-get install openssh-client
