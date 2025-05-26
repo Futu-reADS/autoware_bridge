@@ -45,7 +45,11 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          type -P ssh-keyscan || sudo apt-get install openssh-client
+          type ssh-keyscan || {
+            apt-cache search '.*ssh-keyscan.*'
+            dpkg -L openssh-client
+            sudo apt-get install openssh-client
+          }
           ssh-keyscan github.com >> ~/.ssh/known_hosts
 
       - name: Check build_depends.repos
