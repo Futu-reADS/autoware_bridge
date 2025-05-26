@@ -35,6 +35,7 @@ jobs:
 
       - name: Debug ssh-keyscan
         run: |
+          apt-add-repository -L
           apt-cache pkgnames
           apt-cache search '.*ssh-keyscan.*' || true
           dpkg -L openssh-client || true
