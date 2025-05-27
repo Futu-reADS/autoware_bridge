@@ -99,7 +99,9 @@ jobs:
           echo "password=${{ secrets.UNITTEST_WORKFLOW_TOKEN }}" >> ~/url-username-password.txt
           git credential approve < ~/url-username-password.txt
           mkdir -p dependency_ws
-          vcs import dependency_ws < build_depends.repos || true
+          cat build_depends.repos \
+          | sed 's/git@github.com:/https:\/\/github.com\//' \
+          | vcs import dependency_ws || true
           ls -lR dependency_ws
           # In advance, create *Config.cmake
           for PKG in \
