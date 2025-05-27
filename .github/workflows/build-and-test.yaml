@@ -112,6 +112,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ros-humble-autoware-common-msgs
           sudo apt-get install -y libunwind-dev
+          apt list 'ros-humble-ament-cmake-auto'
+          sudo apt-get install -y ros-humble-ament-cmake-auto
           # In advance, create *Config.cmake
           for PKG in \
               autoware_auto_msgs \
