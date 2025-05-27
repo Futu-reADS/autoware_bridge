@@ -82,47 +82,51 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Futu-reADS/autoware.FTD
-          sparse-checkout: |
-            autoware.repos
-          sparse-checkout-cone-mode: false
+          ### sparse-checkout: |
+          ###   autoware.repos
+          ### sparse-checkout-cone-mode: false
           path: autoware.FTD
       - run: |
           cd autoware.FTD
           cp autoware.repos ../build_depends.repos
-          touch AMENT_IGNORE COLCON_IGNORE
-
-      - name: Debug colcon build
-        run: |
+          ### Set git credential
           git config --global credential.helper store
           echo "url=${{ github.server_url }}" > ~/url-username-password.txt
           echo "username=${{ github.actor }}" >> ~/url-username-password.txt
           echo "password=${{ secrets.UNITTEST_WORKFLOW_TOKEN }}" >> ~/url-username-password.txt
           git credential approve < ~/url-username-password.txt
-          mkdir -p dependency_ws
-          cat build_depends.repos \
-          | sed 's/git@github.com:/https:\/\/github.com\//' \
-          | vcs import dependency_ws || true
-          ls -lR dependency_ws
-          # In advance, create *Config.cmake
-          for PKG in \
-              autoware_auto_msgs \
-              autoware_auto_system_msgs \
-              autoware_adapi_v1_msgs \
-              tier4_control_msgs \
-              tier4_system_msgs \
-              autoware_bridge_msgs \
-              ftd_master_msgs \
-              ; do
-            find dependency_ws \
-              -type f \
-              -path "*/$PKG/CMakeLists.txt" \
-              -execdir pwd \; \
-            | {
-              read -r WORKDIR &&
-              cd "$WORKDIR" &&
-              cmake .
-            } || exit 1
-          done
+          ### Here manually colcon build
+          export MAKEFLAGS="-j 4"
+          colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 4
+          ### Do not watch here
+          touch AMENT_IGNORE COLCON_IGNORE
+
+      ### - name: Debug colcon build
+      ###   run: |
+      ###     mkdir -p dependency_ws
+      ###     cat build_depends.repos \
+      ###     | sed 's/git@github.com:/https:\/\/github.com\//' \
+      ###     | vcs import dependency_ws || true
+      ###     # In advance, create *Config.cmake
+      ###     for PKG in \
+      ###         autoware_auto_msgs \
+      ###         autoware_auto_system_msgs \
+      ###         autoware_adapi_v1_msgs \
+      ###         tier4_control_msgs \
+      ###         tier4_system_msgs \
+      ###         autoware_bridge_msgs \
+      ###         ftd_master_msgs \
+      ###         ; do
+      ###       find dependency_ws \
+      ###         -type f \
+      ###         -path "*/$PKG/CMakeLists.txt" \
+      ###         -execdir pwd \; \
+      ###       | {
+      ###         read -r WORKDIR &&
+      ###         cd "$WORKDIR" &&
+      ###         cmake .
+      ###       } || exit 1
+      ###     done
 
       - name: Build
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
