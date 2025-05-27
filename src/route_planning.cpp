@@ -15,7 +15,7 @@ RoutePlanning::RoutePlanning(
   route_state_SET_start_time_(rclcpp::Time(0))
 {
   route_state_sub_ = node_->create_subscription<RouteState>(
-    "/api/routing/state", 10,
+    "/api/routing/state", rclcpp::QoS(1).transient_local(),
     std::bind(&RoutePlanning::routeStateCallback, this, std::placeholders::_1));
   operation_mode_state_sub_ = node_->create_subscription<OperationModeState>(
     "/api/operation_mode/state",rclcpp::QoS(1).transient_local(),
@@ -114,7 +114,7 @@ void RoutePlanning::execute(
 
         switch (route_state_) {
           case RouteState::UNKNOWN:
-            RCLCPP_ERROR_THROTTLE(
+            RCLCPP_WARN_THROTTLE(
               node_->get_logger(), *node_->get_clock(), 1000,
               "Planning error, Autoware in Unknown State");
             break;
@@ -180,7 +180,7 @@ void RoutePlanning::routeStateCallback(const RouteState & msg)
 void RoutePlanning::operationModeStateCallback(const OperationModeState & msg)
 {
   operation_mode_state_ = msg;
-  RCLCPP_ERROR(node_->get_logger(), "[PANKAJ]Operation mode state: %d", operation_mode_state_.is_autonomous_mode_available);
+  RCLCPP_INFO(node_->get_logger(), "Operation mode state: %d", operation_mode_state_.is_autonomous_mode_available);
 }
 
 void RoutePlanning::cancelCurrentRoute()

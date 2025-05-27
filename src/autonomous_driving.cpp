@@ -22,13 +22,13 @@ AutonomousDriving::AutonomousDriving(
   clear_route_client =node_->create_client<autoware_adapi_v1_msgs::srv::ClearRoute>("/api/routing/clear_route");
   // Initialize subscribers
   operation_mode_state_sub_ = node_->create_subscription<OperationModeState>(
-    "/api/operation_mode/state", 10,
+    "/api/operation_mode/state", rclcpp::QoS(1).transient_local(),
     std::bind(&AutonomousDriving::operationModeStateCallback, this, std::placeholders::_1));
   vehicle_motion_state_sub_ = node_->create_subscription<MotionState>(
-    "/api/motion/state", 10,
+    "/api/motion/state", rclcpp::QoS(1).transient_local(),
     std::bind(&AutonomousDriving::vehicleMotionStateCallback, this, std::placeholders::_1));
   route_state_sub_ = node_->create_subscription<RouteState>(
-    "/api/routing/state", 10,
+    "/api/routing/state", rclcpp::QoS(1).transient_local(),
     std::bind(&AutonomousDriving::routeStateCallback, this, std::placeholders::_1));
 }
 
