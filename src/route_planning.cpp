@@ -114,7 +114,7 @@ void RoutePlanning::execute(
 
         switch (route_state_) {
           case RouteState::UNKNOWN:
-            RCLCPP_ERROR_THROTTLE(
+            RCLCPP_WARN_THROTTLE(
               node_->get_logger(), *node_->get_clock(), 1000,
               "Planning error, Autoware in Unknown State");
             break;
@@ -180,7 +180,7 @@ void RoutePlanning::routeStateCallback(const RouteState & msg)
 void RoutePlanning::operationModeStateCallback(const OperationModeState & msg)
 {
   operation_mode_state_ = msg;
-  RCLCPP_ERROR(node_->get_logger(), "[PANKAJ]Operation mode state: %d", operation_mode_state_.is_autonomous_mode_available);
+  RCLCPP_INFO(node_->get_logger(), "Operation mode state: %d", operation_mode_state_.is_autonomous_mode_available);
 }
 
 void RoutePlanning::cancelCurrentRoute()
