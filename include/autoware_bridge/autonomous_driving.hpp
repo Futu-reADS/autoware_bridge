@@ -27,7 +27,7 @@ class AutonomousDriving : public BaseTask
 {
 public:
   AutonomousDriving(
-    rclcpp::Node::SharedPtr node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util);
+    std::shared_ptr<rclcpp::Node> node, std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util);
   void execute(const std::string & task_id, const geometry_msgs::msg::PoseStamped & pose)
     override;              // Executes Driving
   void cancel() override;  // Requests task cancellation
@@ -40,7 +40,8 @@ public:
   using ClearRoute = autoware_adapi_v1_msgs::srv::ClearRoute;
 
 private:
-  rclcpp::Node::SharedPtr node_;
+  //rclcpp::Node::SharedPtr node_;
+  std::shared_ptr<rclcpp::Node> node_;
   std::shared_ptr<AutowareBridgeUtil> autoware_bridge_util_;
   std::atomic<bool> is_cancel_requested_;
   AutonomousDrivingTaskState state_;
