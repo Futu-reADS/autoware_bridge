@@ -15,7 +15,7 @@ RoutePlanning::RoutePlanning(
   route_state_SET_start_time_(rclcpp::Time(0))
 {
   route_state_sub_ = node_->create_subscription<RouteState>(
-    "/api/routing/state", rclcpp::QoS(1).transient_local(),
+    "/api/routing/state", 10,
     std::bind(&RoutePlanning::routeStateCallback, this, std::placeholders::_1));
   operation_mode_state_sub_ = node_->create_subscription<OperationModeState>(
     "/api/operation_mode/state",rclcpp::QoS(1).transient_local(),
