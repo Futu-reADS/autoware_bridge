@@ -93,6 +93,11 @@ jobs:
 
       - name: Debug colcon build
         run: |
+          git config --global credential.helper store
+          echo "url=${{ github.server_url }}" > ~/url-username-password.txt
+          echo "username=${{ github.actor }}" >> ~/url-username-password.txt
+          echo "password=${{ secrets.UNITTEST_WORKFLOW_TOKEN }}" >> ~/url-username-password.txt
+          git credential approve < ~/url-username-password.txt
           mkdir -p dependency_ws
           vcs import dependency_ws < build_depends.repos || true
           ls -lR dependency_ws
