@@ -89,6 +89,11 @@ jobs:
       - run: |
           cd autoware.FTD
           cp autoware.repos ../build_depends.repos
+          ### Do not watch here
+          touch AMENT_IGNORE COLCON_IGNORE
+
+      - name: Debug colcon build
+        run: |
           ### Set git credential
           git config --global credential.helper store
           echo "url=${{ github.server_url }}" > ~/url-username-password.txt
@@ -96,22 +101,13 @@ jobs:
           echo "password=${{ secrets.UNITTEST_WORKFLOW_TOKEN }}" >> ~/url-username-password.txt
           git credential approve < ~/url-username-password.txt
           ### Here retrieve dependent packages
-          mkdir -p src
-          cat autoware.repos \
+          mkdir -p dependency_ws
+          cat build_depends.repos \
           | sed 's/git@github.com:/https:\/\/github.com\//' \
-          | vcs import src
+          | vcs import dependency_ws || true
           ### Here manually colcon build
           export MAKEFLAGS="-j 4"
           colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 4
-          ### Do not watch here
-          touch AMENT_IGNORE COLCON_IGNORE
-
-      ### - name: Debug colcon build
-      ###   run: |
-      ###     mkdir -p dependency_ws
-      ###     cat build_depends.repos \
-      ###     | sed 's/git@github.com:/https:\/\/github.com\//' \
-      ###     | vcs import dependency_ws || true
       ###     # In advance, create *Config.cmake
       ###     for PKG in \
       ###         autoware_auto_msgs \
