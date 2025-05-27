@@ -105,35 +105,37 @@ jobs:
           cat build_depends.repos \
           | sed 's/git@github.com:/https:\/\/github.com\//' \
           | vcs import dependency_ws || true
-          ###     ### Here manually colcon build
-          ###     export MAKEFLAGS="-j 4"
-          ###     colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 4
           ### Install dependent packages
           sudo apt-get update
           sudo apt-get install -y ros-humble-autoware-common-msgs
           sudo apt-get install -y libunwind-dev
-          apt list 'ros-humble-ament-cmake-auto'
-          sudo apt-get install -y ros-humble-ament-cmake-auto
-          # In advance, create *Config.cmake
-          for PKG in \
-              autoware_auto_msgs \
-              autoware_auto_system_msgs \
-              autoware_adapi_v1_msgs \
-              tier4_control_msgs \
-              tier4_system_msgs \
-              autoware_bridge_msgs \
-              ftd_master_msgs \
-              ; do
-            find dependency_ws \
-              -type f \
-              -path "*/$PKG/CMakeLists.txt" \
-              -execdir pwd \; \
-            | {
-              read -r WORKDIR &&
-              cd "$WORKDIR" &&
-              cmake .
-            } || exit 1
-          done
+          ### Maybe rosdep needed
+          rosdep init || true
+          rosdep update
+          rosdep install --verbose --from-src dependency_ws --ignore-src -r -y
+          ### Here manually colcon build
+          export MAKEFLAGS="-j 4"
+          colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 4
+          ### # In advance, create *Config.cmake
+          ### for PKG in \
+          ###     autoware_auto_msgs \
+          ###     autoware_auto_system_msgs \
+          ###     autoware_adapi_v1_msgs \
+          ###     tier4_control_msgs \
+          ###     tier4_system_msgs \
+          ###     autoware_bridge_msgs \
+          ###     ftd_master_msgs \
+          ###     ; do
+          ###   find dependency_ws \
+          ###     -type f \
+          ###     -path "*/$PKG/CMakeLists.txt" \
+          ###     -execdir pwd \; \
+          ###   | {
+          ###     read -r WORKDIR &&
+          ###     cd "$WORKDIR" &&
+          ###     cmake .
+          ###   } || exit 1
+          ### done
 
       - name: Build
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
