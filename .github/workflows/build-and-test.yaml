@@ -108,6 +108,10 @@ jobs:
           ###     ### Here manually colcon build
           ###     export MAKEFLAGS="-j 4"
           ###     colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 4
+          ### Install dependent packages
+          sudo apt-get update
+          sudo apt-get install ros-humble-autoware-common-msgs
+          sudo apt-get install libunwind-dev
           # In advance, create *Config.cmake
           for PKG in \
               autoware_auto_msgs \
@@ -125,9 +129,7 @@ jobs:
             | {
               read -r WORKDIR &&
               cd "$WORKDIR" &&
-              cmake . &&
-              make clean &&
-              make
+              cmake .
             } || exit 1
           done
 
