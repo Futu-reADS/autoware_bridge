@@ -97,7 +97,6 @@ jobs:
           vcs import dependency_ws < build_depends.repos || true
           ls -lR dependency_ws
           # In advance, create *Config.cmake
-          cd dependency_ws
           for PKG in \
               autoware_auto_msgs \
               autoware_auto_system_msgs \
@@ -107,7 +106,7 @@ jobs:
               autoware_bridge_msgs \
               ftd_master_msgs \
               ; do
-            find src \
+            find dependency_ws \
               -type f \
               -path "*/$PKG/CMakeLists.txt" \
               -execdir pwd \; \
