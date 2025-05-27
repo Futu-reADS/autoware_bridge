@@ -96,8 +96,27 @@ jobs:
           mkdir -p dependency_ws
           vcs import dependency_ws < build_depends.repos || true
           ls -lR dependency_ws
-          sudo apt-get update
-          sudo apt-get install -y ros-humble-autoware-adapi-v1-msgs
+          # In advance, create *Config.cmake
+          cd dependency_ws
+          for PKG in \
+              autoware_auto_msgs \
+              autoware_auto_system_msgs \
+              autoware_adapi_v1_msgs \
+              tier4_control_msgs \
+              tier4_system_msgs \
+              autoware_bridge_msgs \
+              ftd_master_msgs \
+              ; do
+            find src \
+              -type f \
+              -path "*/$PKG/CMakeLists.txt" \
+              -execdir pwd \; \
+            | {
+              read -r WORKDIR &&
+              cd "$WORKDIR" &&
+              cmake .
+            } || exit 1
+          done
 
       - name: Build
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
