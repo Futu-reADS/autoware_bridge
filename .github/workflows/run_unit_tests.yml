@@ -8,11 +8,11 @@ on:
     ### # Excludes feature/fix branches that may be WIP
     ### branches: [ "main", "develop" ]
 
-  # Runs on merge at the main/develop branches
-  # It may be duplicated with the push event
-  pull_request:
-    types: [ "closed" ]
-    branches: [ "main", "develop" ]
+  ### # Runs on merge at the main/develop branches
+  ### # Currently commented out because duplicated with the push event
+  ### pull_request_target:
+  ###   types: [ "closed" ]
+  ###   branches: [ "main", "develop" ]
 
   # Allows you to run this workflow manually from the Actions tab
   # But it can work only if it exists in the default branch
@@ -20,10 +20,13 @@ on:
 
 jobs:
   run-all-unit-tests:
-    # Go ahead if merged, pushed, or manually run
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true ||
-        github.event_name == 'push' ||
-        github.event_name == 'workflow_dispatch'
+    # Go ahead if
+    # - pushed (except for creating a new branch)
+    # - merged
+    # - manually run
+    if: (github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000') ||
+        (github.event_name == 'pull_request_target' && github.event.pull_request.merged == true) ||
+        (github.event_name == 'workflow_dispatch')
 
     # ROS 2 humble is confirmed to run on Ubuntu 22.04 and 20.04,
     # but not on 24.04 yet, as of 2025 May 13
@@ -35,12 +38,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: Futu-reADS/autoware.FTD
-          fetch-depth: 2
           sparse-checkout: |
             autoware.repos
           sparse-checkout-cone-mode: false
-      - run: |
-          git checkout HEAD^
 
       # 1-2.
       - name: Check out the repo for autoware_bridge
