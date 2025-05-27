@@ -31,7 +31,7 @@ jobs:
 
     steps:
       # DEBUG
-      - name: Env
+      - name: Dump github and vars settings
         env:
           ALLGITHUB: ${{ toJSON(github) }}
           ALLVAR: ${{ toJSON(vars) }}
