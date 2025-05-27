@@ -96,9 +96,10 @@ jobs:
           echo "password=${{ secrets.UNITTEST_WORKFLOW_TOKEN }}" >> ~/url-username-password.txt
           git credential approve < ~/url-username-password.txt
           ### Here retrieve dependent packages
+          mkdir -p src
           cat autoware.repos \
           | sed 's/git@github.com:/https:\/\/github.com\//' \
-          | vcs import dependency_ws || true
+          | vcs import src
           ### Here manually colcon build
           export MAKEFLAGS="-j 4"
           colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 4
