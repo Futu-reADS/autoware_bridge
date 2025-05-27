@@ -10,9 +10,9 @@ on:
 
   # Runs on merge at the main/develop branches
   # It may be duplicated with the push event
-  pull_request:
+  pull_request_target:
     types: [ "closed" ]
-    branches: [ "main", "develop" ]
+    ### branches: [ "main", "develop" ]
 
   # Allows you to run this workflow manually from the Actions tab
   # But it can work only if it exists in the default branch
@@ -21,120 +21,126 @@ on:
 jobs:
   run-all-unit-tests:
     # Go ahead if merged, pushed, or manually run
-    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true ||
-        github.event_name == 'push' ||
-        github.event_name == 'workflow_dispatch'
+    ### if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true) ||
+    ###     github.event_name == 'push' ||
+    ###     github.event_name == 'workflow_dispatch'
 
     # ROS 2 humble is confirmed to run on Ubuntu 22.04 and 20.04,
     # but not on 24.04 yet, as of 2025 May 13
     runs-on: ubuntu-22.04
 
     steps:
-      # 1-1.
-      - name: Check out the latest autoware.repos
-        uses: actions/checkout@v4
-        with:
-          repository: Futu-reADS/autoware.FTD
-          sparse-checkout: |
-            autoware.repos
-          sparse-checkout-cone-mode: false
-      - run: git log --graph -a
+      # DEBUG
+      - name: Env
+        env:
+          ALLGITHUB: ${{ toJSON(github) }}
+          ALLVAR: ${{ toJSON(vars) }}
+        run: env
 
-      # 1-2.
-      - name: Check out the repo for autoware_bridge
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.ref_name }}
-          path: src/future_packages/autoware_bridge
-
-      # 1-3.
-      - name: Set up ROS 2 Humble development envrionment
-        run: |
-          export LC_ALL=en_US.UTF-8
-          sudo apt-get install software-properties-common
-          sudo add-apt-repository universe
-          sudo curl -vSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
-          sudo apt-get update
-          sudo apt-get upgrade
-          sudo apt-get install ros-humble-ros-base
-          sudo apt-get install ros-dev-tools
-          sudo apt-get install ros-humble-autoware-common-msgs
-          sudo apt-get install libunwind-dev
-
-      # 1-4.
-      - name: Configure SSH key pair
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan github.com >> ~/.ssh/known_hosts
-
-      # 1-5.
-      - name: Build dependent modules
-        run: |
-          source /opt/ros/humble/setup.bash
-          cat autoware.repos \
-          | awk '
-              /:[[:space:]]*$/ { IGNORE = 0 }
-              /\/autoware_bridge:[[:space:]]*$/ { IGNORE = 1 }
-              IGNORE != 1' \
-          | vcs import --shallow --recursive src
-          sudo rosdep init || true
-          rosdep update
-          rosdep install --from-paths src --ignore-src -r -y
-          for PKG in \
-              autoware_auto_msgs \
-              autoware_auto_system_msgs \
-              autoware_adapi_v1_msgs \
-              tier4_control_msgs \
-              tier4_system_msgs \
-              autoware_bridge_msgs \
-              ftd_master_msgs \
-              ; do
-            find src \
-              -type f \
-              -path "*/$PKG/CMakeLists.txt" \
-              -execdir pwd \; \
-            | {
-              read -r WORKDIR &&
-              cd "$WORKDIR" &&
-              cmake . &&
-              make clean &&
-              make &&
-              sudo make install || exit 1
-            } || exit 1
-          done
-          sudo ldconfig -v /usr/local/lib
-
-      # 1-6.
-      - name: Build
-        run: |
-          source /opt/ros/humble/setup.bash
-          cd src/future_packages/autoware_bridge
-          colcon build --packages-select autoware_bridge --cmake-clean-cache
-
-      # 1-7.
-      - name: Run all unit tests
-        run: |
-          source /opt/ros/humble/setup.bash
-          cd src/future_packages/autoware_bridge
-          source install/setup.bash
-          touch build/AMENT_IGNORE
-          colcon test --packages-select autoware_bridge
-          colcon test-result --all --verbose
-          ### cat log/latest_test/autoware_bridge/stdout_stderr.log
-
-      # 1-8.
-      - name: Output coverage information
-        run: |
-          source /opt/ros/humble/setup.bash
-          cd src/future_packages/autoware_bridge
-          source install/setup.bash
-          lcov --capture --directory build/autoware_bridge --output-file coverage.info
-          lcov --remove coverage.info '/usr/*' '*/test/*' --output-file coverage_filtered.info
-          lcov --extract coverage_filtered.info '*/autoware_bridge/src/*.cpp' --output-file autoware_bridge_src.info
-          ls -l autoware_bridge_src.info
-          cat autoware_bridge_src.info
+###       # 1-1.
+###       - name: Check out the latest autoware.repos
+###         uses: actions/checkout@v4
+###         with:
+###           repository: Futu-reADS/autoware.FTD
+###           sparse-checkout: |
+###             autoware.repos
+###           sparse-checkout-cone-mode: false
+### 
+###       # 1-2.
+###       - name: Check out the repo for autoware_bridge
+###         uses: actions/checkout@v4
+###         with:
+###           ref: ${{ github.ref_name }}
+###           path: src/future_packages/autoware_bridge
+### 
+###       # 1-3.
+###       - name: Set up ROS 2 Humble development envrionment
+###         run: |
+###           export LC_ALL=en_US.UTF-8
+###           sudo apt-get install software-properties-common
+###           sudo add-apt-repository universe
+###           sudo curl -vSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+###           echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+###           sudo apt-get update
+###           sudo apt-get upgrade
+###           sudo apt-get install ros-humble-ros-base
+###           sudo apt-get install ros-dev-tools
+###           sudo apt-get install ros-humble-autoware-common-msgs
+###           sudo apt-get install libunwind-dev
+### 
+###       # 1-4.
+###       - name: Configure SSH key pair
+###         run: |
+###           mkdir -p ~/.ssh
+###           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+###           chmod 600 ~/.ssh/id_rsa
+###           ssh-keyscan github.com >> ~/.ssh/known_hosts
+### 
+###       # 1-5.
+###       - name: Build dependent modules
+###         run: |
+###           source /opt/ros/humble/setup.bash
+###           cat autoware.repos \
+###           | awk '
+###               /:[[:space:]]*$/ { IGNORE = 0 }
+###               /\/autoware_bridge:[[:space:]]*$/ { IGNORE = 1 }
+###               IGNORE != 1' \
+###           | vcs import --shallow --recursive src
+###           sudo rosdep init || true
+###           rosdep update
+###           rosdep install --from-paths src --ignore-src -r -y
+###           for PKG in \
+###               autoware_auto_msgs \
+###               autoware_auto_system_msgs \
+###               autoware_adapi_v1_msgs \
+###               tier4_control_msgs \
+###               tier4_system_msgs \
+###               autoware_bridge_msgs \
+###               ftd_master_msgs \
+###               ; do
+###             find src \
+###               -type f \
+###               -path "*/$PKG/CMakeLists.txt" \
+###               -execdir pwd \; \
+###             | {
+###               read -r WORKDIR &&
+###               cd "$WORKDIR" &&
+###               cmake . &&
+###               make clean &&
+###               make &&
+###               sudo make install || exit 1
+###             } || exit 1
+###           done
+###           sudo ldconfig -v /usr/local/lib
+### 
+###       # 1-6.
+###       - name: Build
+###         run: |
+###           source /opt/ros/humble/setup.bash
+###           cd src/future_packages/autoware_bridge
+###           colcon build --packages-select autoware_bridge --cmake-clean-cache
+### 
+###       # 1-7.
+###       - name: Run all unit tests
+###         run: |
+###           source /opt/ros/humble/setup.bash
+###           cd src/future_packages/autoware_bridge
+###           source install/setup.bash
+###           touch build/AMENT_IGNORE
+###           colcon test --packages-select autoware_bridge
+###           colcon test-result --all --verbose
+###           ### cat log/latest_test/autoware_bridge/stdout_stderr.log
+### 
+###       # 1-8.
+###       - name: Output coverage information
+###         run: |
+###           source /opt/ros/humble/setup.bash
+###           cd src/future_packages/autoware_bridge
+###           source install/setup.bash
+###           lcov --capture --directory build/autoware_bridge --output-file coverage.info
+###           lcov --remove coverage.info '/usr/*' '*/test/*' --output-file coverage_filtered.info
+###           lcov --extract coverage_filtered.info '*/autoware_bridge/src/*.cpp' --output-file autoware_bridge_src.info
+###           ls -l autoware_bridge_src.info
+###           cat autoware_bridge_src.info
 
 # vim: sw=2:et:si:ai
