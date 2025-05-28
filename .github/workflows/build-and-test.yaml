@@ -121,7 +121,7 @@ jobs:
           ### Maybe rosdep needed
           rosdep init || true
           rosdep update
-          rosdep install --verbose --from-paths dependency_ws --ignore-src -r -y
+          rosdep install --verbose --from-paths dependency_ws -r -y
           # Check ROS Humble cmake directory
           sh -xc env
           ls -lR /opt/ros/humble/share/ament?cmake?auto/cmake || true
