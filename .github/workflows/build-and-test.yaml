@@ -112,8 +112,16 @@ jobs:
           | vcs import --shallow --recursive dependency_ws
           ### Maybe rosdep needed
           rosdep init || true
+          sh -xc "ls -l install" || true
           rosdep update
+          sh -xc "ls -l install" || true
           rosdep install --verbose --from-paths dependency_ws --ignore-src -r -y
+          sh -xc "ls -l install" || true
+          # Check ROS Humble cmake directory
+          sh -xc env
+          ls -lR /opt/ros/humble/share/ament?cmake?auto/cmake || true
+          ls -ld /opt/ros/humble/share/*/cmake || true
+          ls -ld /opt/ros/* || true
           # In advance, create *Config.cmake
           for PKG in \
               autoware_auto_msgs \
