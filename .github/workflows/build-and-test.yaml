@@ -112,7 +112,7 @@ jobs:
           ### Maybe rosdep needed
           rosdep init || true
           rosdep update
-          rosdep install --verbose --from-src dependency_ws --ignore-src -r -y
+          rosdep install --verbose --from-paths dependency_ws --ignore-src -r -y
           ### Here manually colcon build
           export MAKEFLAGS="-j 4"
           colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 4
