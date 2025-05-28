@@ -170,12 +170,16 @@ jobs:
               read -r WORKDIR &&
               echo "WORKDIR='$WORKDIR'" &&
               cd "$WORKDIR" &&
-              cmake --trace .
+              cmake . &&
+              make &&
+              sudo make install
             }
           done
           ### Here manually colcon build
-          export MAKEFLAGS="-j 4"
-          colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 4
+          ### export MAKEFLAGS="-j 4"
+          ### colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 4
+
+      - run: env
 
       - name: Build
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
