@@ -130,13 +130,16 @@ jobs:
           done
           env | grep -E '^(AMENT_PREFIX_PATH|CMAKE_PREFIX_PATH|LD_LIBRARY_PATH|PATH|PYTHONPATH)=' >> "$GITHUB_ENV"
           ### Set git credential
-          cd autoware.FTD
           git config --global credential.helper store
-          git config --local credential.helper store
           echo "url=${{ github.server_url }}" > ~/url-username-password.txt
           echo "username=${{ github.actor }}" >> ~/url-username-password.txt
           echo "password=${{ secrets.UNITTEST_WORKFLOW_TOKEN }}" >> ~/url-username-password.txt
           git credential approve < ~/url-username-password.txt
+          cd autoware.FTD
+          sh -xc 'git config credential.helper store'
+          sh -xc 'git config list'
+          sh -xc 'git config get --all credential.helper'
+          sh -xc 'git config get credential.helper'
           ### Here retrieve dependent packages
           mkdir -p src
           cat ../build_depends.repos \
