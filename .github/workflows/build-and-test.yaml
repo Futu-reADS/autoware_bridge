@@ -104,6 +104,9 @@ jobs:
           if [ -z "$AMENT_PREFIX_PATH" ]; then
             export AMENT_PREFIX_PATH='/opt/ros/humble'
           fi
+          if [ -z "$CMAKE_PREFIX_PATH" ]; then
+            export CMAKE_PREFIX_PATH='/opt/ros/humble/share'
+          fi
           ### Set git credential
           git config --global credential.helper store
           echo "url=${{ github.server_url }}" > ~/url-username-password.txt
@@ -143,7 +146,7 @@ jobs:
               echo "WORKDIR='$WORKDIR'" &&
               cd "$WORKDIR" &&
               cmake --trace .
-            } || exit 1
+            }
           done
           ### Here manually colcon build
           export MAKEFLAGS="-j 4"
