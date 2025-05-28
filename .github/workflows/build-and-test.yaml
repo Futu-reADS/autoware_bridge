@@ -98,7 +98,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ros-humble-autoware-common-msgs
           sudo apt-get install -y libunwind-dev
+          sh -xc env
           source /opt/ros/humble/setup.bash || true
+          sh -xc env
+          if [ -z "$AMENT_PREFIX_PATH" ]; then
+            export AMENT_PREFIX_PATH='/opt/ros/humble'
+          fi
           ### Set git credential
           git config --global credential.helper store
           echo "url=${{ github.server_url }}" > ~/url-username-password.txt
@@ -112,11 +117,8 @@ jobs:
           | vcs import --shallow --recursive dependency_ws
           ### Maybe rosdep needed
           rosdep init || true
-          sh -xc "ls -l install" || true
           rosdep update
-          sh -xc "ls -l install" || true
           rosdep install --verbose --from-paths dependency_ws --ignore-src -r -y
-          sh -xc "ls -l install" || true
           # Check ROS Humble cmake directory
           sh -xc env
           ls -lR /opt/ros/humble/share/ament?cmake?auto/cmake || true
