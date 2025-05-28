@@ -89,6 +89,8 @@ jobs:
       - run: |
           cd autoware.FTD
           cp autoware.repos ../build_depends.repos
+          ### Do not watch here
+          touch AMENT_IGNORE COLCON_IGNORE
 
       - name: Make install dependent packages
         run: |
@@ -135,20 +137,19 @@ jobs:
           echo "username=${{ github.actor }}" >> ~/url-username-password.txt
           echo "password=${{ secrets.UNITTEST_WORKFLOW_TOKEN }}" >> ~/url-username-password.txt
           git credential approve < ~/url-username-password.txt
-          cd autoware.FTD
-          sh -xc 'git config credential.helper store'
-          sh -xc 'git config list'
-          sh -xc 'git config get --all credential.helper'
-          sh -xc 'git config get credential.helper'
+          ### sh -xc 'git config credential.helper store'
+          ### sh -xc 'git config list'
+          ### sh -xc 'git config get --all credential.helper'
+          ### sh -xc 'git config get credential.helper'
           ### Here retrieve dependent packages
-          mkdir -p src
-          cat ../build_depends.repos \
+          mkdir -p src_tmp
+          cat build_depends.repos \
           | sed 's/git@github.com:/https:\/\/github.com\//' \
-          | vcs import --shallow --recursive src
+          | vcs import --shallow --recursive src_tmp
           ### Maybe rosdep needed
           rosdep init || true
           rosdep update
-          rosdep install --verbose --from-paths src --ignore-src -r -y
+          rosdep install --verbose --from-paths src_tmp --ignore-src -r -y
           # In advance, create *Config.cmake
           for PKG in \
               autoware_auto_msgs \
@@ -159,7 +160,7 @@ jobs:
               autoware_bridge_msgs \
               ftd_master_msgs \
               ; do
-            find src \
+            find src_tmp \
               -type f \
               -path "*/$PKG/CMakeLists.txt" \
               -execdir pwd \; \
@@ -173,11 +174,10 @@ jobs:
             }
           done
           sudo ldconfig -v
+          rm -rfv src_tmp
           ### Here manually colcon build
           ### export MAKEFLAGS="-j 4"
           ### colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 4
-          ### Do not watch here
-          touch AMENT_IGNORE COLCON_IGNORE
 
       - run: env
 
