@@ -89,18 +89,14 @@ jobs:
       - run: |
           cd autoware.FTD
           cp autoware.repos ../build_depends.repos
-          ### Do not watch here
-          touch AMENT_IGNORE COLCON_IGNORE
 
-      - name: Debug colcon build
+      - name: Make install dependent packages
         run: |
           ### Install dependent packages
           sudo apt-get update
           sudo apt-get install -y ros-humble-autoware-common-msgs
           sudo apt-get install -y libunwind-dev
-          sh -xc env
           source /opt/ros/humble/setup.bash || true
-          sh -xc env
           if [ -z "$AMENT_PREFIX_PATH" ]; then
             export AMENT_PREFIX_PATH='/opt/ros/humble'
           fi
@@ -132,6 +128,7 @@ jobs:
               fi
             fi
           done
+          env | grep -E '^(AMENT_PREFIX_PATH|CMAKE_PREFIX_PATH|LD_LIBRARY_PATH|PATH|PYTHONPATH)=' >> "$GITHUB_ENV"
           ### Set git credential
           git config --global credential.helper store
           echo "url=${{ github.server_url }}" > ~/url-username-password.txt
@@ -139,19 +136,15 @@ jobs:
           echo "password=${{ secrets.UNITTEST_WORKFLOW_TOKEN }}" >> ~/url-username-password.txt
           git credential approve < ~/url-username-password.txt
           ### Here retrieve dependent packages
-          mkdir -p dependency_ws
+          mkdir -p autoware.FTD/src
           cat build_depends.repos \
           | sed 's/git@github.com:/https:\/\/github.com\//' \
-          | vcs import --shallow --recursive dependency_ws
+          | vcs import --shallow --recursive autoware.FTD/src
           ### Maybe rosdep needed
+          cd autoware.FTD
           rosdep init || true
           rosdep update
-          rosdep install --verbose --from-paths dependency_ws --ignore-src -r -y
-          # Check ROS Humble cmake directory
-          sh -xc env
-          ls -lR /opt/ros/humble/share/ament?cmake?auto/cmake || true
-          ls -ld /opt/ros/humble/share/*/cmake || true
-          ls -ld /opt/ros/* || true
+          rosdep install --verbose --from-paths src --ignore-src -r -y
           # In advance, create *Config.cmake
           for PKG in \
               autoware_auto_msgs \
@@ -162,7 +155,7 @@ jobs:
               autoware_bridge_msgs \
               ftd_master_msgs \
               ; do
-            find dependency_ws \
+            find src \
               -type f \
               -path "*/$PKG/CMakeLists.txt" \
               -execdir pwd \; \
@@ -175,9 +168,12 @@ jobs:
               sudo make install
             }
           done
+          sudo ldconfig -v
           ### Here manually colcon build
           ### export MAKEFLAGS="-j 4"
           ### colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --parallel-workers 4
+          ### Do not watch here
+          touch AMENT_IGNORE COLCON_IGNORE
 
       - run: env
 
