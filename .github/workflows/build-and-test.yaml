@@ -94,6 +94,11 @@ jobs:
 
       - name: Debug colcon build
         run: |
+          ### Install dependent packages
+          sudo apt-get update
+          sudo apt-get install -y ros-humble-autoware-common-msgs
+          sudo apt-get install -y libunwind-dev
+          source /opt/ros/humble/setup.bash || true
           ### Set git credential
           git config --global credential.helper store
           echo "url=${{ github.server_url }}" > ~/url-username-password.txt
@@ -104,11 +109,7 @@ jobs:
           mkdir -p dependency_ws
           cat build_depends.repos \
           | sed 's/git@github.com:/https:\/\/github.com\//' \
-          | vcs import dependency_ws || true
-          ### Install dependent packages
-          sudo apt-get update
-          sudo apt-get install -y ros-humble-autoware-common-msgs
-          sudo apt-get install -y libunwind-dev
+          | vcs import --shallow --recursive dependency_ws
           ### Maybe rosdep needed
           rosdep init || true
           rosdep update
@@ -129,8 +130,9 @@ jobs:
               -execdir pwd \; \
             | {
               read -r WORKDIR &&
+              echo "WORKDIR='$WORKDIR'" &&
               cd "$WORKDIR" &&
-              cmake .
+              cmake --trace .
             } || exit 1
           done
           ### Here manually colcon build
