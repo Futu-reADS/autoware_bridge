@@ -107,6 +107,31 @@ jobs:
           if [ -z "$CMAKE_PREFIX_PATH" ]; then
             export CMAKE_PREFIX_PATH='/opt/ros/humble/share'
           fi
+          if [ -z "$(echo "$LD_LIBRARY_PATH" | tr ':' '\n' | grep -xF /opt/ros/humble/lib)" ]; then
+            if [ -z "$LD_LIBRARY_PATH" ]; then
+              export LD_LIBRARY_PATH='/opt/ros/humble/lib'
+            else
+              export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/opt/ros/humble/lib"
+            fi
+          fi
+          if [ -z "$(echo "$PATH" | tr ':' '\n' | grep -xF /opt/ros/humble/bin)" ]; then
+            if [ -z "$PATH" ]; then
+              export PATH='/opt/ros/humble/bin'
+            else
+              export PATH="$PATH:/opt/ros/humble/bin"
+            fi
+          fi
+          for _pythonpath in /opt/ros/humble/lib/python*/*-packages /opt/ros/humble/local/lib/python*/*-packages; do
+            if [ -d "$_pythonpath" ]; then
+              if [ -z "$(echo "$PYTHONPATH" | tr ':' '\n' | grep -xF "$_pythonpath")" ]; then
+                if [ -z "$PYTHONPATH" ]; then
+                  export PYTHONPATH="$_pythonpath"
+                else
+                  export PYTHONPATH="$PYTHONPATH:$_pythonpath"
+                fi
+              fi
+            fi
+          done
           ### Set git credential
           git config --global credential.helper store
           echo "url=${{ github.server_url }}" > ~/url-username-password.txt
@@ -121,7 +146,7 @@ jobs:
           ### Maybe rosdep needed
           rosdep init || true
           rosdep update
-          rosdep install --verbose --from-paths dependency_ws -r -y
+          rosdep install --verbose --from-paths dependency_ws --ignore-src -r -y
           # Check ROS Humble cmake directory
           sh -xc env
           ls -lR /opt/ros/humble/share/ament?cmake?auto/cmake || true
