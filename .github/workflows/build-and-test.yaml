@@ -139,7 +139,7 @@ jobs:
           git credential approve < ~/url-username-password.txt
           ### Here retrieve dependent packages
           mkdir -p src
-          cat build_depends.repos \
+          cat ../build_depends.repos \
           | sed 's/git@github.com:/https:\/\/github.com\//' \
           | vcs import --shallow --recursive src
           ### Maybe rosdep needed
