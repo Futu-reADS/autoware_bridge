@@ -130,18 +130,19 @@ jobs:
           done
           env | grep -E '^(AMENT_PREFIX_PATH|CMAKE_PREFIX_PATH|LD_LIBRARY_PATH|PATH|PYTHONPATH)=' >> "$GITHUB_ENV"
           ### Set git credential
+          cd autoware.FTD
           git config --global credential.helper store
+          git config --local credential.helper store
           echo "url=${{ github.server_url }}" > ~/url-username-password.txt
           echo "username=${{ github.actor }}" >> ~/url-username-password.txt
           echo "password=${{ secrets.UNITTEST_WORKFLOW_TOKEN }}" >> ~/url-username-password.txt
           git credential approve < ~/url-username-password.txt
           ### Here retrieve dependent packages
-          mkdir -p autoware.FTD/src
+          mkdir -p src
           cat build_depends.repos \
           | sed 's/git@github.com:/https:\/\/github.com\//' \
-          | vcs import --shallow --recursive autoware.FTD/src
+          | vcs import --shallow --recursive src
           ### Maybe rosdep needed
-          cd autoware.FTD
           rosdep init || true
           rosdep update
           rosdep install --verbose --from-paths src --ignore-src -r -y
