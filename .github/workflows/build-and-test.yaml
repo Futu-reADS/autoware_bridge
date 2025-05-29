@@ -160,7 +160,9 @@ jobs:
       - name: Diagnose environment
         run: |
           sh -xc "env"
-          source /opt/ros/humble/setup.bash
+          sh -xc "ls -l /opt/ros/humble/" || true
+          sh -xc ". /opt/ros/humble/setup.sh" || true
+          . /opt/ros/humble/setup.bash || true
           sh -xc "env"
 
       - name: Build
