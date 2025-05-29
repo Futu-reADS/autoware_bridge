@@ -34,8 +34,10 @@ jobs:
       - name: Show disk space before the tasks
         run: df -h
 
-      - name: Update OS package indexes
-        run: apt-get update
+      - name: Update OS package
+        run: |
+          sudo apt-get update -qy
+          sudo apt-get upgrade -qy
 
       - name: Remove exec_depend
         uses: autowarefoundation/autoware-github-actions/remove-exec-depend@v1
@@ -73,6 +75,15 @@ jobs:
           # Install dependent packages
           sudo apt-get install -y ros-humble-autoware-common-msgs
           sudo apt-get install -y libunwind-dev
+
+      - name: Diagnose environment
+        run: |
+          set -o xtrace
+          env
+          ls -l /opt/ros/humble/ || true
+          source /opt/ros/humble/setup.bash || true
+          nl -ba /opt/ros/humble/setup.bash || true
+          env
 
       - name: Set environment variables
         run: |
@@ -157,13 +168,12 @@ jobs:
 ###           sudo ldconfig -v
 ###           rm -rfv src_tmp
 
-      - name: Diagnose environment
+      - name: Diagnose environment 2
         run: |
-          sh -xc "env"
-          sh -xc "ls -l /opt/ros/humble/" || true
-          sh -xc ". /opt/ros/humble/setup.sh" || true
-          . /opt/ros/humble/setup.bash || true
-          sh -xc "env"
+          set -o xtrace
+          env
+          source /opt/ros/humble/setup.bash || true
+          env
 
       - name: Build
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
