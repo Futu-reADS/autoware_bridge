@@ -34,10 +34,11 @@ jobs:
       - name: Show disk space before the tasks
         run: df -h
 
+      # Added for FUTU-RE
       - name: Update OS package
         run: |
           sudo apt-get update -qy
-          sudo apt-get upgrade -qy
+          ### sudo apt-get upgrade -qy
 
       - name: Remove exec_depend
         uses: autowarefoundation/autoware-github-actions/remove-exec-depend@v1
@@ -46,6 +47,7 @@ jobs:
         id: get-self-packages
         uses: autowarefoundation/autoware-github-actions/get-self-packages@v1
 
+      # Added for FUTU-RE
       - name: Check build_depends.repos
         id: check-file
         run: |
@@ -55,6 +57,7 @@ jobs:
             echo "build_depends_repos=false" >> $GITHUB_OUTPUT
           fi
 
+      # Added for FUTU-RE
       - name: Copy our latest autoware.repos
         if: ${{ steps.check-file.outputs.build_depends_repos != 'true' }}
         uses: actions/checkout@v4
@@ -70,21 +73,24 @@ jobs:
           # Do not process here afterwards
           touch AMENT_IGNORE COLCON_IGNORE
 
+      # Added for FUTU-RE
       - name: Install more dependent packages
         run: |
           # Install dependent packages
           sudo apt-get install -y ros-humble-autoware-common-msgs
           sudo apt-get install -y libunwind-dev
 
+      # Added for FUTU-RE
       - name: Diagnose environment
         run: |
           set -o xtrace
           env
           ls -l /opt/ros/humble/ || true
-          source /opt/ros/humble/setup.bash || true
-          nl -ba /opt/ros/humble/setup.bash || true
+          . /opt/ros/humble/setup.sh || true
+          nl -ba /opt/ros/humble/setup.sh || true
           env
 
+      # Added for FUTU-RE
       - name: Set environment variables
         run: |
           # FIXME:
@@ -92,7 +98,7 @@ jobs:
           # environment variables correctly
           # Here, it supposed to run with ROS 2 Humble
           # Update here accordingly if strategy.matrix changes
-          source /opt/ros/humble/setup.bash || true
+          . /opt/ros/humble/setup.sh || true
           if [ -z "$AMENT_PREFIX_PATH" ]; then
             export AMENT_PREFIX_PATH='/opt/ros/humble'
           fi
@@ -127,6 +133,7 @@ jobs:
           # Pass to the subsequent steps
           env | grep -E '^(AMENT_PREFIX_PATH|CMAKE_PREFIX_PATH|LD_LIBRARY_PATH|PATH|PYTHONPATH)=' >> "$GITHUB_ENV"
 
+      # Added for FUTU-RE
       - name: Set Git credential for private repos
         run: |
           git config --global credential.helper store
@@ -168,11 +175,12 @@ jobs:
 ###           sudo ldconfig -v
 ###           rm -rfv src_tmp
 
+      # Added for FUTU-RE
       - name: Diagnose environment 2
         run: |
           set -o xtrace
           env
-          source /opt/ros/humble/setup.bash || true
+          . /opt/ros/humble/setup.sh || true
           env
 
       - name: Build
