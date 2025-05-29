@@ -34,12 +34,6 @@ jobs:
       - name: Show disk space before the tasks
         run: df -h
 
-      # Added for FUTU-RE
-      - name: Update OS package
-        run: |
-          sudo apt-get update -qy
-          ### sudo apt-get upgrade -qy
-
       - name: Remove exec_depend
         uses: autowarefoundation/autoware-github-actions/remove-exec-depend@v1
 
@@ -77,61 +71,58 @@ jobs:
       - name: Install more dependent packages
         run: |
           # Install dependent packages
+          sudo apt-get update -qy
           sudo apt-get install -y ros-humble-autoware-common-msgs
           sudo apt-get install -y libunwind-dev
 
-      # Added for FUTU-RE
-      - name: Diagnose environment
-        run: |
-          set -o xtrace
-          env
-          ls -l /opt/ros/humble/ || true
-          . /opt/ros/humble/setup.sh || true
-          nl -ba /opt/ros/humble/setup.sh || true
-          env
+###       # Added for FUTU-RE
+###       - name: Set environment variables
+###         run: |
+###           # FIXME:
+###           # The reason is unclear, but setup.bash does not set the following
+###           # environment variables correctly
+###           # Here, it supposed to run with ROS 2 Humble
+###           # Update here accordingly if strategy.matrix changes
+###           . /opt/ros/humble/setup.sh || true
+###           if [ -z "$AMENT_PREFIX_PATH" ]; then
+###             export AMENT_PREFIX_PATH='/opt/ros/humble'
+###           fi
+###           if [ -z "$CMAKE_PREFIX_PATH" ]; then
+###             export CMAKE_PREFIX_PATH='/opt/ros/humble/share'
+###           fi
+###           if [ -z "$(echo "$LD_LIBRARY_PATH" | tr ':' '\n' | grep -xF /opt/ros/humble/lib)" ]; then
+###             if [ -z "$LD_LIBRARY_PATH" ]; then
+###               export LD_LIBRARY_PATH='/opt/ros/humble/lib'
+###             else
+###               export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/opt/ros/humble/lib"
+###             fi
+###           fi
+###           if [ -z "$(echo "$PATH" | tr ':' '\n' | grep -xF /opt/ros/humble/bin)" ]; then
+###             if [ -z "$PATH" ]; then
+###               export PATH='/opt/ros/humble/bin'
+###             else
+###               export PATH="$PATH:/opt/ros/humble/bin"
+###             fi
+###           fi
+###           for _pythonpath in /opt/ros/humble/lib/python*/*-packages /opt/ros/humble/local/lib/python*/*-packages; do
+###             if [ -d "$_pythonpath" ]; then
+###               if [ -z "$(echo "$PYTHONPATH" | tr ':' '\n' | grep -xF "$_pythonpath")" ]; then
+###                 if [ -z "$PYTHONPATH" ]; then
+###                   export PYTHONPATH="$_pythonpath"
+###                 else
+###                   export PYTHONPATH="$PYTHONPATH:$_pythonpath"
+###                 fi
+###               fi
+###             fi
+###           done
+###           # Pass to the subsequent steps
+###           env | grep -E '^(AMENT_PREFIX_PATH|CMAKE_PREFIX_PATH|LD_LIBRARY_PATH|PATH|PYTHONPATH)=' >> "$GITHUB_ENV"
 
       # Added for FUTU-RE
-      - name: Set environment variables
+      - name: Pass ROS environment variables to the subsequent steps
         run: |
-          # FIXME:
-          # The reason is unclear, but setup.bash does not set the following
-          # environment variables correctly
-          # Here, it supposed to run with ROS 2 Humble
-          # Update here accordingly if strategy.matrix changes
-          . /opt/ros/humble/setup.sh || true
-          if [ -z "$AMENT_PREFIX_PATH" ]; then
-            export AMENT_PREFIX_PATH='/opt/ros/humble'
-          fi
-          if [ -z "$CMAKE_PREFIX_PATH" ]; then
-            export CMAKE_PREFIX_PATH='/opt/ros/humble/share'
-          fi
-          if [ -z "$(echo "$LD_LIBRARY_PATH" | tr ':' '\n' | grep -xF /opt/ros/humble/lib)" ]; then
-            if [ -z "$LD_LIBRARY_PATH" ]; then
-              export LD_LIBRARY_PATH='/opt/ros/humble/lib'
-            else
-              export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/opt/ros/humble/lib"
-            fi
-          fi
-          if [ -z "$(echo "$PATH" | tr ':' '\n' | grep -xF /opt/ros/humble/bin)" ]; then
-            if [ -z "$PATH" ]; then
-              export PATH='/opt/ros/humble/bin'
-            else
-              export PATH="$PATH:/opt/ros/humble/bin"
-            fi
-          fi
-          for _pythonpath in /opt/ros/humble/lib/python*/*-packages /opt/ros/humble/local/lib/python*/*-packages; do
-            if [ -d "$_pythonpath" ]; then
-              if [ -z "$(echo "$PYTHONPATH" | tr ':' '\n' | grep -xF "$_pythonpath")" ]; then
-                if [ -z "$PYTHONPATH" ]; then
-                  export PYTHONPATH="$_pythonpath"
-                else
-                  export PYTHONPATH="$PYTHONPATH:$_pythonpath"
-                fi
-              fi
-            fi
-          done
-          # Pass to the subsequent steps
-          env | grep -E '^(AMENT_PREFIX_PATH|CMAKE_PREFIX_PATH|LD_LIBRARY_PATH|PATH|PYTHONPATH)=' >> "$GITHUB_ENV"
+          . /opt/ros/humble/setup.sh
+          env | grep -E -e '^ROS_' -e '/ros/' >> "$GITHUB_ENV"
 
       # Added for FUTU-RE
       - name: Set Git credential for private repos
@@ -174,14 +165,6 @@ jobs:
 ###           done
 ###           sudo ldconfig -v
 ###           rm -rfv src_tmp
-
-      # Added for FUTU-RE
-      - name: Diagnose environment 2
-        run: |
-          set -o xtrace
-          env
-          . /opt/ros/humble/setup.sh || true
-          env
 
       - name: Build
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
