@@ -75,49 +75,6 @@ jobs:
           sudo apt-get install -y ros-humble-autoware-common-msgs
           sudo apt-get install -y libunwind-dev
 
-###       # Added for FUTU-RE
-###       - name: Set environment variables
-###         run: |
-###           # FIXME:
-###           # The reason is unclear, but setup.bash does not set the following
-###           # environment variables correctly
-###           # Here, it supposed to run with ROS 2 Humble
-###           # Update here accordingly if strategy.matrix changes
-###           . /opt/ros/humble/setup.sh || true
-###           if [ -z "$AMENT_PREFIX_PATH" ]; then
-###             export AMENT_PREFIX_PATH='/opt/ros/humble'
-###           fi
-###           if [ -z "$CMAKE_PREFIX_PATH" ]; then
-###             export CMAKE_PREFIX_PATH='/opt/ros/humble/share'
-###           fi
-###           if [ -z "$(echo "$LD_LIBRARY_PATH" | tr ':' '\n' | grep -xF /opt/ros/humble/lib)" ]; then
-###             if [ -z "$LD_LIBRARY_PATH" ]; then
-###               export LD_LIBRARY_PATH='/opt/ros/humble/lib'
-###             else
-###               export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/opt/ros/humble/lib"
-###             fi
-###           fi
-###           if [ -z "$(echo "$PATH" | tr ':' '\n' | grep -xF /opt/ros/humble/bin)" ]; then
-###             if [ -z "$PATH" ]; then
-###               export PATH='/opt/ros/humble/bin'
-###             else
-###               export PATH="$PATH:/opt/ros/humble/bin"
-###             fi
-###           fi
-###           for _pythonpath in /opt/ros/humble/lib/python*/*-packages /opt/ros/humble/local/lib/python*/*-packages; do
-###             if [ -d "$_pythonpath" ]; then
-###               if [ -z "$(echo "$PYTHONPATH" | tr ':' '\n' | grep -xF "$_pythonpath")" ]; then
-###                 if [ -z "$PYTHONPATH" ]; then
-###                   export PYTHONPATH="$_pythonpath"
-###                 else
-###                   export PYTHONPATH="$PYTHONPATH:$_pythonpath"
-###                 fi
-###               fi
-###             fi
-###           done
-###           # Pass to the subsequent steps
-###           env | grep -E '^(AMENT_PREFIX_PATH|CMAKE_PREFIX_PATH|LD_LIBRARY_PATH|PATH|PYTHONPATH)=' >> "$GITHUB_ENV"
-
       # Added for FUTU-RE
       - name: Pass ROS environment variables to the subsequent steps
         run: |
@@ -135,7 +92,11 @@ jobs:
           git credential approve < ~/url-username-password.txt
 
       # Added for FUTU-RE
-      - name: Build and install dependent packages
+      # NOTE:
+      # This step might be able to be removed
+      # by tuning package.xml and/or autoware.repos appropriately
+      # so that colcon can find the following modules
+      - name: Build and install dependent modules
         run: |
           mkdir -p src_tmp
           cat build_depends.repos \
@@ -143,7 +104,7 @@ jobs:
           | vcs import --shallow --recursive src_tmp
           rosdep init || true
           rosdep update
-          rosdep install --verbose --from-paths src_tmp --ignore-src -r -y
+          rosdep install --from-paths src_tmp --ignore-src -r -y
           for PKG in \
               autoware_auto_msgs \
               autoware_auto_system_msgs \
@@ -165,8 +126,8 @@ jobs:
               sudo make install
             }
           done
-          sudo ldconfig -v
-          rm -rfv src_tmp
+          sudo ldconfig
+          sudo rm -rf src_tmp
 
       - name: Build
         if: ${{ steps.get-self-packages.outputs.self-packages != '' }}
