@@ -91,7 +91,7 @@ jobs:
         run: |
           git config --global credential.helper store
           echo "url=${{ github.server_url }}" > ~/url-username-password.txt
-          echo "username=${{ github.actor }}" >> ~/url-username-password.txt
+          echo "username=oku-s" >> ~/url-username-password.txt
           echo "password=${{ secrets.UNITTEST_WORKFLOW_TOKEN }}" >> ~/url-username-password.txt
           git credential approve < ~/url-username-password.txt
 
@@ -106,9 +106,9 @@ jobs:
           cat build_depends.repos \
           | sed 's/git@github.com:/https:\/\/github.com\//' \
           | vcs import --shallow --recursive src_tmp
-          rosdep init || true
+          sudo rosdep init || true
           rosdep update
-          rosdep install --from-paths src_tmp --ignore-src -r -y
+          rosdep install --from-paths src_tmp --ignore-src -r -y -t build
           for PKG in \
               autoware_auto_msgs \
               autoware_auto_system_msgs \
