@@ -76,10 +76,10 @@ jobs:
           ### sudo apt-get update -qy || {
             # It may fail by an outdated GPG key
             ls -lRa /usr/share/ros-apt-source/ || true
-            head -v -9999 /usr/share/ros-apt-source/* || true
+            head -v -n9999 /usr/share/ros-apt-source/* || true
             ls -lRa /etc/apt/sources.list.d/ || true
             ls -lLRa /etc/apt/sources.list.d/ || true
-            head -v -9999 /etc/apt/sources.list.d/* || true
+            head -v -n9999 /etc/apt/sources.list.d/* || true
             grep -Fr 'http://packages.ros.org/ros2/ubuntu' /etc/apt/sources.list.d/ || true
             for F in $(grep -Flr 'http://packages.ros.org/ros2/ubuntu' /etc/apt/sources.list.d/); do
               sudo rm -vf "$F"
@@ -89,7 +89,7 @@ jobs:
             | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
             ls -lRa /etc/apt/sources.list.d/ || true
             ls -lLRa /etc/apt/sources.list.d/ || true
-            head -v -9999 /etc/apt/sources.list.d/* || true
+            head -v -n9999 /etc/apt/sources.list.d/* || true
             sudo apt-get update -y
           ### }
           sudo apt-get install -y \
