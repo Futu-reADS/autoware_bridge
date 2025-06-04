@@ -73,7 +73,7 @@ jobs:
       - name: Install additional packages
         run: |
           # Install dependent packages
-          ### sudo apt-get update -qy || {
+          sudo apt-get update -qy || {
             # It may fail by an outdated GPG key
             for F in $(grep -FlR 'http://packages.ros.org/ros2/ubuntu' /etc/apt/sources.list.d/); do
               sudo rm -vf "$F"
@@ -82,7 +82,7 @@ jobs:
             echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
             | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
             sudo apt-get update -y
-          ### }
+          }
           sudo apt-get install -y \
             ros-humble-autoware-common-msgs \
             libunwind-dev \
