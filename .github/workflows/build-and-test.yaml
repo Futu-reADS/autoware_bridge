@@ -80,8 +80,8 @@ jobs:
             ls -lRa /etc/apt/sources.list.d/ || true
             ls -lLRa /etc/apt/sources.list.d/ || true
             head -v -n9999 /etc/apt/sources.list.d/* || true
-            grep -Fr 'http://packages.ros.org/ros2/ubuntu' /etc/apt/sources.list.d/ || true
-            for F in $(grep -Flr 'http://packages.ros.org/ros2/ubuntu' /etc/apt/sources.list.d/); do
+            grep -FR 'http://packages.ros.org/ros2/ubuntu' /etc/apt/sources.list.d/ || true
+            for F in $(grep -FlR 'http://packages.ros.org/ros2/ubuntu' /etc/apt/sources.list.d/); do
               sudo rm -vf "$F"
             done
             sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
