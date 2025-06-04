@@ -75,21 +75,12 @@ jobs:
           # Install dependent packages
           ### sudo apt-get update -qy || {
             # It may fail by an outdated GPG key
-            ls -lRa /usr/share/ros-apt-source/ || true
-            head -v -n9999 /usr/share/ros-apt-source/* || true
-            ls -lRa /etc/apt/sources.list.d/ || true
-            ls -lLRa /etc/apt/sources.list.d/ || true
-            head -v -n9999 /etc/apt/sources.list.d/* || true
-            grep -FR 'http://packages.ros.org/ros2/ubuntu' /etc/apt/sources.list.d/ || true
             for F in $(grep -FlR 'http://packages.ros.org/ros2/ubuntu' /etc/apt/sources.list.d/); do
               sudo rm -vf "$F"
             done
             sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
             echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
             | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
-            ls -lRa /etc/apt/sources.list.d/ || true
-            ls -lLRa /etc/apt/sources.list.d/ || true
-            head -v -n9999 /etc/apt/sources.list.d/* || true
             sudo apt-get update -y
           ### }
           sudo apt-get install -y \
