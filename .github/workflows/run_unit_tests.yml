@@ -16,7 +16,7 @@ on:
 
   # Allows you to run this workflow manually from the Actions tab
   # But it can work only if it exists in the default branch
-  workflow_dispatch:
+  ### workflow_dispatch:
 
 jobs:
   run-all-unit-tests:
