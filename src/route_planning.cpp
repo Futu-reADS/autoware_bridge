@@ -15,7 +15,7 @@ RoutePlanning::RoutePlanning(
   route_state_SET_start_time_(rclcpp::Time(0))
 {
   route_state_sub_ = node_->create_subscription<RouteState>(
-    "/api/routing/state", rclcpp::QoS(1).transient_local(),
+    "/api/routing/state", 10,
     std::bind(&RoutePlanning::routeStateCallback, this, std::placeholders::_1));
   operation_mode_state_sub_ = node_->create_subscription<OperationModeState>(
     "/api/operation_mode/state",rclcpp::QoS(1).transient_local(),
@@ -114,15 +114,12 @@ void RoutePlanning::execute(
 
         switch (route_state_) {
           case RouteState::UNKNOWN:
-            RCLCPP_INFO_THROTTLE(
+            RCLCPP_WARN_THROTTLE(
               node_->get_logger(), *node_->get_clock(), 1000,
-              "RouteState::UNKNOWN, Autoware is in Unknown State currently, waiting for Autoware to set the route.");
+              "Planning error, Autoware in Unknown State");
             break;
 
           case RouteState::UNSET:
-          RCLCPP_INFO_THROTTLE(
-            node_->get_logger(), *node_->get_clock(), 5000,
-            "Route RouteState::UNSET,Autoware is in UNSET State currently, waiting for Autoware to set the route.");
             break;
 
           case RouteState::SET:
@@ -131,10 +128,7 @@ void RoutePlanning::execute(
             break;
 
           case RouteState::ARRIVED:
-            //failed = true;
-            RCLCPP_INFO_THROTTLE(
-              node_->get_logger(), *node_->get_clock(), 5000,
-              "Route RouteState::ARRIVED,Autoware is in arrived State currently,waiting for Autoware to set the route.");
+            failed = true;
             break;
 
           case RouteState::CHANGING:
