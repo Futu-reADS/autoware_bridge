@@ -13,22 +13,25 @@ AutonomousDriving::AutonomousDriving(
   operation_mode_state_(),
   vehicle_motion_state_(MotionState::UNKNOWN),
   route_state_(RouteState::UNKNOWN),
+  change_operation_mode_response_received_(false),
   driving_start_time_(rclcpp::Time(0)),
   halt_start_time_(rclcpp::Time(0))
 {
   // Initialize autonomous client
-  auto_drive_engage_client = node_->create_client<autoware_adapi_v1_msgs::srv::ChangeOperationMode>(
+  auto_drive_engage_client    = node_->create_client<autoware_adapi_v1_msgs::srv::ChangeOperationMode>(
     "/api/operation_mode/change_to_autonomous");
-  clear_route_client =node_->create_client<autoware_adapi_v1_msgs::srv::ClearRoute>("/api/routing/clear_route");
+  auto_drive_disengage_client = node_->create_client<autoware_adapi_v1_msgs::srv::ChangeOperationMode>(
+    "/api/operation_mode/change_to_stop");
+  clear_route_client = node_->create_client<autoware_adapi_v1_msgs::srv::ClearRoute>("/api/routing/clear_route");
   // Initialize subscribers
   operation_mode_state_sub_ = node_->create_subscription<OperationModeState>(
-    "/api/operation_mode/state", 10,
+    "/api/operation_mode/state", rclcpp::QoS(1).transient_local(),
     std::bind(&AutonomousDriving::operationModeStateCallback, this, std::placeholders::_1));
   vehicle_motion_state_sub_ = node_->create_subscription<MotionState>(
-    "/api/motion/state", 10,
+    "/api/motion/state", rclcpp::QoS(1).transient_local(),
     std::bind(&AutonomousDriving::vehicleMotionStateCallback, this, std::placeholders::_1));
   route_state_sub_ = node_->create_subscription<RouteState>(
-    "/api/routing/state", 10,
+    "/api/routing/state", rclcpp::QoS(1).transient_local(),
     std::bind(&AutonomousDriving::routeStateCallback, this, std::placeholders::_1));
 }
 
@@ -46,8 +49,10 @@ void AutonomousDriving::execute(
     std::lock_guard<std::mutex> lock(task_mutex_);
 
     if (is_cancel_requested_) {
-      // CANCEL
       autoware_bridge_util_->updateTaskStatus(task_id, "CANCELLED");
+      // Changed OperationMode to STOP
+      disengageAutoDrive();
+      // CANCEL
       cancelCurrentRoute();
       RCLCPP_INFO(node_->get_logger(), "Driving task %s cancelled.", task_id.c_str());
       break;
@@ -75,7 +80,6 @@ void AutonomousDriving::execute(
 
         if (retry_counter <= MAX_DRIVE_RETRIES) {
           engageAutoDrive();
-          driving_start_time_ = node_->get_clock()->now();
           state_ = AutonomousDrivingTaskState::WAIT_AUTO_DRIVE_READY;
           autoware_bridge_util_->updateTaskRetries(task_id, retry_counter);
           retry_counter++;
@@ -85,14 +89,24 @@ void AutonomousDriving::execute(
         break;
 
       case AutonomousDrivingTaskState::WAIT_AUTO_DRIVE_READY:
-        if (operation_mode_state_.mode == OperationModeState::AUTONOMOUS) {
+        if (change_operation_mode_response_received_ &&
+            operation_mode_state_.mode == OperationModeState::AUTONOMOUS) {
+          RCLCPP_INFO(node_->get_logger(), "Autonomous driving triggered successfully. OperationModeState:%s",
+              operation_mode_state_.mode == OperationModeState::UNKNOWN    ? "UNKNOWN" :
+              operation_mode_state_.mode == OperationModeState::STOP       ? "STOP" :
+              operation_mode_state_.mode == OperationModeState::AUTONOMOUS ? "AUTONOMOUS" :
+              operation_mode_state_.mode == OperationModeState::LOCAL      ? "LOCAL" :
+              operation_mode_state_.mode == OperationModeState::REMOTE     ? "REMOTE" : "(undefined)");
           state_ = AutonomousDrivingTaskState::DRIVING;
         }
-        // Timer for 10 seconds and retry if the mode is not autonomous
-        else if (
-          node_->get_clock()->now().seconds() - driving_start_time_.seconds() >
-          DRIVE_WAIT_TIMEOUT_S) {
-          RCLCPP_ERROR_THROTTLE(node_->get_logger(), *node_->get_clock(), 1000, "Driving error, timeout expired");
+        else if (node_->get_clock()->now().seconds() - driving_start_time_.seconds() > DRIVE_WAIT_TIMEOUT_S) {
+          // Timer for 10 seconds and retry if the mode is not autonomous
+          RCLCPP_ERROR(node_->get_logger(), "Driving error, timeout expired. OperationModeState:%s",
+              operation_mode_state_.mode == OperationModeState::UNKNOWN    ? "UNKNOWN" :
+              operation_mode_state_.mode == OperationModeState::STOP       ? "STOP" :
+              operation_mode_state_.mode == OperationModeState::AUTONOMOUS ? "AUTONOMOUS" :
+              operation_mode_state_.mode == OperationModeState::LOCAL      ? "LOCAL" :
+              operation_mode_state_.mode == OperationModeState::REMOTE     ? "REMOTE" : "(undefined)");
           state_ = AutonomousDrivingTaskState::ENGAGE_AUTO_DRIVE;
         }
         break;
@@ -133,10 +147,13 @@ void AutonomousDriving::cancel()
 
 void AutonomousDriving::engageAutoDrive()
 {
+  change_operation_mode_response_received_ = false;   // atomic
+
   /*auto_drive_engage_client is a ROS2 service client
     Its purpose is to send a request to a service(in this case,
     /api/operation_mode/change_to_autonomous) that instructs the vehicle or control system to
     switch to autonomous mode. service server is responsible for processing the request*/
+
   while (!auto_drive_engage_client->wait_for_service(1s)) {
     if (!rclcpp::ok()) {
       RCLCPP_ERROR(
@@ -146,7 +163,18 @@ void AutonomousDriving::engageAutoDrive()
     RCLCPP_INFO(node_->get_logger(), "auto_drive_engage service not available, waiting again...");
   }
   auto request = std::make_shared<ChangeOperationMode::Request>();
-  auto future_result = auto_drive_engage_client->async_send_request(request);
+  auto future = auto_drive_engage_client->async_send_request(request);
+  driving_start_time_ = node_->get_clock()->now();
+
+  RCLCPP_INFO(node_->get_logger(), "send request to change_to_autonomous service.");
+
+  if (future.wait_for(std::chrono::duration<double>(DRIVE_WAIT_TIMEOUT_S)) == std::future_status::ready) {
+      change_operation_mode_response_received_ = true;   // atomic
+      RCLCPP_INFO(node_->get_logger(), "received response from change_to_autonomous service.");
+      RCLCPP_INFO(node_->get_logger(), "auto_drive_engage service server responded.");
+  } else {
+      RCLCPP_INFO(node_->get_logger(), "timeout for response from change_to_autonomous service.");
+  }
 
   // It's good practice to add a maximum retry limit in case the service is not available.
 }
@@ -154,6 +182,12 @@ void AutonomousDriving::engageAutoDrive()
 void AutonomousDriving::operationModeStateCallback(const OperationModeState msg)
 {
   operation_mode_state_ = msg;
+  RCLCPP_INFO(node_->get_logger(), "received /api/operation_mode/state: operation mode:%s",
+              operation_mode_state_.mode == OperationModeState::UNKNOWN    ? "UNKNOWN" :
+              operation_mode_state_.mode == OperationModeState::STOP       ? "STOP" :
+              operation_mode_state_.mode == OperationModeState::AUTONOMOUS ? "AUTONOMOUS" :
+              operation_mode_state_.mode == OperationModeState::LOCAL      ? "LOCAL" :
+              operation_mode_state_.mode == OperationModeState::REMOTE     ? "REMOTE" : "(undefined)");
 }
 
 void AutonomousDriving::vehicleMotionStateCallback(const MotionState msg)
@@ -179,5 +213,23 @@ void AutonomousDriving::cancelCurrentRoute()
   auto request = std::make_shared<ClearRoute::Request>();
 
   auto future_result = clear_route_client->async_send_request(request);
-
+  future_result.wait_for(1s);   // you may resurrect this line for graceful cancelling
 }
+
+void AutonomousDriving::disengageAutoDrive()
+{
+  while (!auto_drive_disengage_client->wait_for_service(1s)) {
+    if (!rclcpp::ok()) {
+      RCLCPP_ERROR(
+        node_->get_logger(), "Interrupted while waiting for change_to_stop service. Exiting.");
+      return;
+    }
+    RCLCPP_INFO(node_->get_logger(), "change_to_stop service not available, waiting again...");
+  }
+  auto request = std::make_shared<ChangeOperationMode::Request>();
+  auto future_result = auto_drive_disengage_client->async_send_request(request);
+  RCLCPP_INFO(node_->get_logger(), "send request to change_to_stop service.");
+  future_result.wait_for(1s);
+  RCLCPP_INFO(node_->get_logger(), "received response from change_to_stop service.");
+}
+

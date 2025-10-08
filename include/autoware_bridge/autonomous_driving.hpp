@@ -48,6 +48,7 @@ private:
   OperationModeState operation_mode_state_;
   uint16_t vehicle_motion_state_;
   uint16_t route_state_;
+  std::atomic<bool> change_operation_mode_response_received_;
 
   rclcpp::Time driving_start_time_;
   rclcpp::Time halt_start_time_;
@@ -60,6 +61,7 @@ private:
 
   // Client
   rclcpp::Client<ChangeOperationMode>::SharedPtr auto_drive_engage_client;
+  rclcpp::Client<ChangeOperationMode>::SharedPtr auto_drive_disengage_client;
   rclcpp::Client<ClearRoute>::SharedPtr clear_route_client;
 
   // callbacks
@@ -69,6 +71,7 @@ private:
 
   // Helper methods
   void engageAutoDrive();
+  void disengageAutoDrive();
   void cancelCurrentRoute();
 };
 

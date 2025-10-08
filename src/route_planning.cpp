@@ -180,7 +180,14 @@ void RoutePlanning::routeStateCallback(const RouteState & msg)
 void RoutePlanning::operationModeStateCallback(const OperationModeState & msg)
 {
   operation_mode_state_ = msg;
-  RCLCPP_INFO(node_->get_logger(), "Operation mode state: %d", operation_mode_state_.is_autonomous_mode_available);
+  RCLCPP_INFO(node_->get_logger(), "received /api/operation_mode/state: operation mode:%s",
+              operation_mode_state_.mode == OperationModeState::UNKNOWN    ? "UNKNOWN" :
+              operation_mode_state_.mode == OperationModeState::STOP       ? "STOP" :
+              operation_mode_state_.mode == OperationModeState::AUTONOMOUS ? "AUTONOMOUS" :
+              operation_mode_state_.mode == OperationModeState::LOCAL      ? "LOCAL" :
+              operation_mode_state_.mode == OperationModeState::REMOTE     ? "REMOTE" : "(undefined)");
+  RCLCPP_INFO(node_->get_logger(), "AUTONOMOUS MODE %s available.", operation_mode_state_.is_autonomous_mode_available ? "is" : "is not");
+  //RCLCPP_INFO(node_->get_logger(), "Operation mode state (AUTONOMOUS mode avaiable?): %d", operation_mode_state_.is_autonomous_mode_available);
 }
 
 void RoutePlanning::cancelCurrentRoute()
