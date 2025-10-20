@@ -11,6 +11,7 @@
 #include <geometry_msgs/msg/pose_with_covariance_stamped.hpp>
 #include <tier4_system_msgs/msg/mode_change_available.hpp>
 #include <tier4_control_msgs/msg/gate_mode.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 #include <atomic>
 #include <memory>
@@ -38,6 +39,7 @@ public:
   using PoseStamped = geometry_msgs::msg::PoseStamped;
   using PoseWithCovarianceStamped = geometry_msgs::msg::PoseWithCovarianceStamped;
   using GateMode = tier4_control_msgs::msg::GateMode;
+  using Bool = std_msgs::msg::Bool;
 
 private:
   //rclcpp::Node::SharedPtr node_;
@@ -47,6 +49,7 @@ private:
 
   LocalizationTaskState state_;
   uint16_t localization_state_;
+  bool localization_topic_health_;
   bool localization_quality_;
   rclcpp::Time localization_start_time_;
 
@@ -57,7 +60,8 @@ private:
   void pubInitPose(const geometry_msgs::msg::PoseStamped & init_pose);
 
   // callbacks
-  void localizationQualityCallback(const ModeChangeAvailable & msg);
+  void localizationTopicHealthCallback(const ModeChangeAvailable & msg);
+  void localizationQualityCallback(const Bool & msg);
   void localizationStateCallback(const LocalizationInitializationState & msg);
 
   // Publisher
@@ -67,7 +71,9 @@ private:
 
   // Subscriber
   rclcpp::Subscription<LocalizationInitializationState>::SharedPtr localization_state_subscriber_;
-  rclcpp::Subscription<ModeChangeAvailable>::SharedPtr localization_quality_subscriber_;
+  rclcpp::Subscription<ModeChangeAvailable>::SharedPtr localization_topic_health_subscriber_;
+  rclcpp::Subscription<Bool>::SharedPtr localization_quality_subscriber_;    // subscribe info from /diagnostics
+  
 };
 
 #endif  // LOCALIZATION_HPP

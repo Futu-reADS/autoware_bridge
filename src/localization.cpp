@@ -10,6 +10,7 @@ Localization::Localization(
   is_cancel_requested_(false),
   state_(LocalizationTaskState::INITIALIZATION),
   localization_state_(LocalizationInitializationState::UNKNOWN),
+  localization_topic_health_(false),
   localization_quality_(false),
   localization_start_time_(rclcpp::Time(0))
 {
@@ -20,10 +21,15 @@ Localization::Localization(
     "/api/localization/initialization_state", rclcpp::QoS(1).transient_local(),
     std::bind(&Localization::localizationStateCallback, this, std::placeholders::_1));
 
-  localization_quality_subscriber_ = node_->create_subscription<ModeChangeAvailable>(
-    "/system/component_state_monitor/component/autonomous/localization",
+  localization_topic_health_subscriber_ = node_->create_subscription<ModeChangeAvailable>(
+    "/system/component_state_monitor/component/autonomous/localization",    // This topic only reports normality of frequency of topics, lacking information on localization quality itself.  
     rclcpp::QoS(1).transient_local(),
-    std::bind(&Localization::localizationQualityCallback, this, std::placeholders::_1));
+    std::bind(&Localization::localizationTopicHealthCallback, this, std::placeholders::_1)); 
+
+  localization_quality_subscriber_ = node_->create_subscription<std_msgs::msg::Bool>(
+    "/fault_detection/localization_state",    // good if true; info taken from /diagnostics
+    10,
+    std::bind(&Localization::localizationQualityCallback, this, std::placeholders::_1)); 
 
     current_gate_mode_publisher_ = node_->create_publisher<tier4_control_msgs::msg::GateMode>(
     "/input/current_gate_mode", rclcpp::QoS{1});
@@ -113,7 +119,7 @@ void Localization::execute(
         if (
           node_->get_clock()->now().seconds() - localization_start_time_.seconds() >
           LOC_WAIT_TIMEOUT_S) {
-          if (localization_quality_) {
+          if (localization_topic_health_ && localization_quality_) {
             success = true;
             RCLCPP_INFO(node_->get_logger(), "[AVI7] Localization state: %d", localization_state_);
           } else {
@@ -141,9 +147,15 @@ void Localization::cancel()
 
 // make it a callback to update the status
 
-void Localization::localizationQualityCallback(const ModeChangeAvailable & msg)
+void Localization::localizationTopicHealthCallback(const ModeChangeAvailable & msg)
 {
-  localization_quality_ = msg.available;
+  localization_topic_health_ = msg.available;
+  RCLCPP_INFO(node_->get_logger(), "[AVI11] localizationTopicHealthCallback: localization_topic_health_%d", localization_topic_health_);
+}
+
+void Localization::localizationQualityCallback(const Bool & msg)
+{
+  localization_quality_ = msg.data;
   RCLCPP_INFO(node_->get_logger(), "[AVI11] localizationQualityCallback: localization_quality_%d", localization_quality_);
 }
 
