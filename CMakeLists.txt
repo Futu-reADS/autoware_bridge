@@ -17,6 +17,7 @@ find_package(ftd_master_msgs REQUIRED)
 find_package(autoware_bridge_msgs REQUIRED)
 find_package(autoware_auto_msgs REQUIRED)
 find_package(autoware_auto_system_msgs REQUIRED)
+find_package(autoware_auto_vehicle_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 
@@ -52,6 +53,7 @@ ament_target_dependencies(autoware_bridge_lib
   autoware_bridge_msgs
   autoware_auto_msgs
   autoware_auto_system_msgs
+  autoware_auto_vehicle_msgs
   rosidl_default_runtime
 )
 

@@ -15,7 +15,7 @@
 #include <std_msgs/msg/bool.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <tier4_system_msgs/msg/mode_change_available.hpp>
-
+#include <autoware_auto_vehicle_msgs/msg/control_mode_report.hpp>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -39,11 +39,13 @@ private:
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr autonomous_driving_request_subscription_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr cancel_task_subscription_;
   rclcpp::Subscription<ModeChangeAvailable>::SharedPtr localization_quality_subscriber_;
+  rclcpp::Subscription<autoware_auto_vehicle_msgs::msg::ControlModeReport>::SharedPtr control_mode_subscription_;
 
   // ROS2 Publishers
   rclcpp::Publisher<diagnostic_msgs::msg::KeyValue>::SharedPtr task_response_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::KeyValue>::SharedPtr cancel_response_publisher_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr reinitialize_response_publisher_;
+  rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::ControlModeReport>::SharedPtr control_mode_publisher_;
 
   // ROS2 Services
   rclcpp::Service<autoware_bridge::srv::GetTaskStatus>::SharedPtr status_service_;
@@ -64,6 +66,7 @@ private:
   void cancelTaskCallback(const std_msgs::msg::String::SharedPtr msg);
   void onTimerCallback();
   void localizationQualityCallback(const ModeChangeAvailable & msg);
+  void controlModeReportCallback(const autoware_auto_vehicle_msgs::msg::ControlModeReport::SharedPtr msg);
 
   // Helper functions
   bool isTaskRejected(const std::string & task_name);

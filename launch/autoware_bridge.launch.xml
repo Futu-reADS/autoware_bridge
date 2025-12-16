@@ -11,5 +11,7 @@
         exec="autoware_bridge_node"
         name="autoware_bridge"
         output="screen">
+        <remap from="vehicle_control_mode_in" to="/vehicle/status/control_mode"/>
+        <remap from="vehicle_control_mode_out" to="/vehicle/status/control_mode_sensored"/>
     </node>
 </launch>
