@@ -69,7 +69,8 @@ AutowareBridgeNode::AutowareBridgeNode(std::shared_ptr<AutowareBridgeUtil> util)
       std::bind(&AutowareBridgeNode::controlModeReportCallback, this, std::placeholders::_1));
     control_mode_publisher_ = create_publisher<autoware_auto_vehicle_msgs::msg::ControlModeReport>(
       "vehicle_control_mode_out", 1);
-
+    suppress_autonomous_publisher_ = create_publisher<std_msgs::msg::Bool>(
+      "suppress_autonomous", 1);
 
   RCLCPP_INFO(this->get_logger(), "Autoware Bridge Node has been initialized.");
 }
@@ -281,15 +282,20 @@ void AutowareBridgeNode::localizationQualityCallback(const ModeChangeAvailable &
 
 void AutowareBridgeNode::controlModeReportCallback(const autoware_auto_vehicle_msgs::msg::ControlModeReport::SharedPtr msg)
 {
+  std_msgs::msg::Bool msg_suppress_autonomous;
+  msg_suppress_autonomous.data = false;
+
   std::string active_task_id = autoware_bridge_util_->getActiveTaskId();
   TaskInfo task_status = autoware_bridge_util_->getTaskStatus(active_task_id);
   if (active_task_id.find("autonomous_driving") != 0 ||
       (task_status.status == "CANCELLED" || task_status.status == "TIMEOUT" || task_status.status == "SUCCESS")) {
     if (msg->mode == autoware_auto_vehicle_msgs::msg::ControlModeReport::AUTONOMOUS) {
       msg->mode = autoware_auto_vehicle_msgs::msg::ControlModeReport::DISENGAGED;
+      msg_suppress_autonomous.data = true;
     }
   }
   control_mode_publisher_->publish(*msg);
+  suppress_autonomous_publisher_->publish(msg_suppress_autonomous);
 }
 
 int main(int argc, char * argv[])

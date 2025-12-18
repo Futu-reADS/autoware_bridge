@@ -46,6 +46,7 @@ private:
   rclcpp::Publisher<diagnostic_msgs::msg::KeyValue>::SharedPtr cancel_response_publisher_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr reinitialize_response_publisher_;
   rclcpp::Publisher<autoware_auto_vehicle_msgs::msg::ControlModeReport>::SharedPtr control_mode_publisher_;
+  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr suppress_autonomous_publisher_;
 
   // ROS2 Services
   rclcpp::Service<autoware_bridge::srv::GetTaskStatus>::SharedPtr status_service_;
