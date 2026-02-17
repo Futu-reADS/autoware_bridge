@@ -63,6 +63,10 @@ AutowareBridgeNode::AutowareBridgeNode(std::shared_ptr<AutowareBridgeUtil> util)
     rclcpp::QoS(1).transient_local(),
     std::bind(&AutowareBridgeNode::localizationQualityCallback, this, std::placeholders::_1));
 
+    // control_mode filter
+    suppress_autonomous_publisher_ = create_publisher<std_msgs::msg::Bool>(
+      "suppress_autonomous", 1);
+
   RCLCPP_INFO(this->get_logger(), "Autoware Bridge Node has been initialized.");
 }
 
