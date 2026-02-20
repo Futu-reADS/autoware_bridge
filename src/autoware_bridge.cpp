@@ -69,7 +69,6 @@ AutowareBridgeNode::AutowareBridgeNode(std::shared_ptr<AutowareBridgeUtil> util)
       std::bind(&AutowareBridgeNode::controlModeReportCallback, this, std::placeholders::_1));
     control_mode_publisher_ = create_publisher<autoware_auto_vehicle_msgs::msg::ControlModeReport>(
       "vehicle_control_mode_out", 1);
-
     suppress_autonomous_publisher_ = create_publisher<std_msgs::msg::Bool>(
       "suppress_autonomous", 1);
 
