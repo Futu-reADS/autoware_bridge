@@ -11,6 +11,11 @@
         exec="autoware_bridge_node"
         name="autoware_bridge"
         output="screen">
+<<<<<<< HEAD
         <remap from="suppress_autonomous" to="/autoware_bridge/suppress_autonomous"/>
+=======
+        <remap from="vehicle_control_mode_in" to="/vehicle/status/control_mode"/>
+        <remap from="vehicle_control_mode_out" to="/vehicle/status/control_mode_sensored"/>
+>>>>>>> parent of 8b90b06 (Added publish of topic to suppress autonomous driving)
     </node>
 </launch>
